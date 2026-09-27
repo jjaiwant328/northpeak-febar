@@ -1,0 +1,62 @@
+bundle:
+  name: northpeak-retail-v2
+
+workspace:
+  root_path: /Workspace/Users/${workspace.current_user.userName}/northpeak-retail-v2/${bundle.target}
+
+variables:
+  app_name:
+    description: Databricks App name
+    default: northpeak-retail-v2
+  sql_warehouse_id:
+    description: SQL warehouse used by the analytics plugin
+    default: bf7ffcda00a8c351
+  postgres_branch:
+    description: Lakebase branch resource path
+  postgres_database:
+    description: Lakebase database resource path
+
+sync:
+  include:
+    - dist/**
+    - client/dist/**
+    - drizzle/**
+    - package.json
+    - package-lock.json
+  exclude:
+    - node_modules/**
+
+resources:
+  apps:
+    app:
+      name: ${var.app_name}
+      description: NorthPeak Store Ops v2
+      source_code_path: ./
+      lifecycle:
+        started: true
+      resources:
+        - name: sql-warehouse
+          sql_warehouse:
+            id: ${var.sql_warehouse_id}
+            permission: CAN_USE
+        - name: postgres
+          postgres:
+            branch: ${var.postgres_branch}
+            database: ${var.postgres_database}
+            permission: CAN_CONNECT_AND_CREATE
+
+targets:
+  dev:
+    mode: development
+    variables:
+      app_name: northpeak-retail-v2-dev
+      postgres_branch: projects/northpeak/branches/dev
+      postgres_database: projects/northpeak/branches/dev/databases/databricks-postgres
+
+  app:
+    mode: production
+    default: true
+    variables:
+      app_name: northpeak-retail-v2
+      postgres_branch: projects/northpeak/branches/app
+      postgres_database: projects/northpeak/branches/app/databases/databricks-postgres

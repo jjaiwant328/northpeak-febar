@@ -1,0 +1,11 @@
+.DS_Store
+.databricks/
+.env
+.smoke-test/
+node_modules/
+test-results/
+playwright-report/
+*.tsbuildinfo
+dist/
+client/dist/
+drizzle/

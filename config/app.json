@@ -1,0 +1,83 @@
+{
+  // NorthPeak Store Ops — app config (JSONC). Loaded by server/server.ts.
+  //
+  // ${VAR} / ${VAR:default} placeholders are substituted against process.env
+  // BEFORE JSON parsing, so catalog/schema/resource-IDs live in env (one
+  // source of truth), NOT as literals here — set them in `.env` (local dev +
+  // preview) or via the DAB (deployed; finalize_app.sh writes app.yaml's env).
+  //   - `${VAR}`           → empty string if unset
+  //   - `${VAR:default}`   → `default` if unset
+  // Empty values degrade gracefully; the app still boots.
+  //
+  // CUSTOMIZE per demo: branding, assistantScript, and data.tables names.
+
+  // ── Agent data backend: the `ask_data` tool. Config-driven MAS-OR-Genie.
+  //   Set ONE (via env). This is the WORKSHOP'S Build-1 choice — the trainee
+  //   wires either a Genie space (GENIE_SPACE_ID) or a Multi-Agent Supervisor
+  //   endpoint (MAS_ENDPOINT_NAME). The app registers whichever is set; if
+  //   BOTH are empty the agent has no ask_data tool (warned at boot).
+  //   The default NorthPeak flow uses Genie ("ask why Store 214 is short").
+  "masEndpointName": "${MAS_ENDPOINT_NAME:}",
+  "genieSpaceId":    "${GENIE_SPACE_ID:01f1a24bf79019f98136bd1b5aea29c8}",
+
+  // Agent LLM. Needs the Responses API (openai/v1/responses). databricks-gpt-5-4
+  // is the baseline; a newer GPT endpoint with /responses enabled works too.
+  // Non-Responses models (Claude etc.) 400 BAD_REQUEST.
+  "agentModel": "databricks-gpt-5-4",
+
+  // MLflow trace path. Empty → chat shows "Trace pending…". Auto-created at boot.
+  "mlflowExperimentId": "",
+  "agentMlflowExperimentPath": "${AGENT_MLFLOW_EXPERIMENT_PATH:}",
+
+  // Embedded AI/BI dashboard (UUID). The NorthPeak stockout/markdown
+  // validation dashboard. Empty → the /dashboard route + tile render inert.
+  "dashboardId": "${DASHBOARD_ID:01f1a24fdd6d187b81c668722ee06628}",
+
+  // Workspace resource IDs → deep-link URLs via /api/resources (PlatformDiagram
+  // on /platform). Empty id → tile renders inert.
+  "pipelineId":        "${PIPELINE_ID:}",
+  "warehouseId":       "${WAREHOUSE_ID:}",
+  "kaEndpointName":    "${KA_ENDPOINT_NAME:}",
+  "lakebaseProjectId": "${LAKEBASE_PROJECT_ID:northpeak}",
+  "appUrl":            "${APP_URL:}",
+  // The recovery ML model (UC-registered). The trainee builds it in Build 2.
+  "mlModelName":       "${DEMO_CATALOG:rtdemo}.${DEMO_SCHEMA:demo-northpeak}.recovery_recommender",
+
+  // Delta source for boot-time Lakebase mirror (server/db/sync.ts). catalog +
+  // schema from env; the table NAMES are the NorthPeak Gold tables. Keep
+  // client/src/shared/types.ts + Drizzle schema (server/db/schema.ts) in sync.
+  // recoveryRecommendations is OPTIONAL — the trainee builds that Gold table
+  // in the ML step, so sync tolerates it not existing yet.
+  "data": {
+    "catalog": "${DEMO_CATALOG:rtdemo}",
+    "schema":  "${DEMO_SCHEMA:demo-northpeak}",
+    "tables": {
+      "storeSkuPosition":        "gold_store_sku_position",
+      "openShortfalls":          "gold_open_shortfalls",
+      "recoveryRecommendations": "gold_recovery_recommendations",
+      "products":                "raw_products"
+    }
+  },
+
+  // Surfaces in dock header + page titles.
+  "branding": {
+    "appName": "NorthPeak Store Ops v2"
+  },
+
+  // Dock's "Suggested next" chip walks this list. Step N unlocks once the
+  // previous assistant message contains any triggerAfter[] substring.
+  // The NorthPeak investigate → rank → approve flow.
+  "assistantScript": [
+    {
+      "prompt": "Why is Store 214 out of the Summit Down Parka, and what are my options?"
+    },
+    {
+      "prompt": "Rank the recovery move. Use the model.",
+      "triggerAfter": ["short", "shortfall", "options", "Store 214", "surplus"]
+    },
+    {
+      "prompt": "Yes — approve the transfer.",
+      "triggerAfter": ["transfer", "recover", "approve", "recaptured"]
+    }
+  ]
+}

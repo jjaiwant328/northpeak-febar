@@ -1,0 +1,7 @@
+node_modules/
+.env
+.databricks/
+.smoke-test/
+test-results/
+playwright-report/
+*.tsbuildinfo
