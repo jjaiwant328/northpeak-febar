@@ -47,12 +47,12 @@ env:
   - name: DEMO_CATALOG
     value: rtdemo
   - name: DEMO_SCHEMA
-    value: demo-northpeak
+    value: northpeak_v2
   - name: GENIE_SPACE_ID
     value: 01f1a24bf79019f98136bd1b5aea29c8
   - name: DASHBOARD_ID
     value: 01f1a24fdd6d187b81c668722ee06628
   - name: PIPELINE_ID
-    value: 444b2883-77af-486d-88a0-8a52d21df130
+    value: f456d45a-2b87-4090-a055-2da4d9ddad76
   - name: LAKEBASE_PROJECT_ID
     value: northpeak

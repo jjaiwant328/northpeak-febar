@@ -1,0 +1,120 @@
+# Databricks Asset Bundle — NorthPeak FE Bar addons.
+#
+# Self-contained pipeline + ML build (user-directed: every file the jobs need
+# is COPIED into this folder — nothing is referenced from /Shared). Deploys to
+# the user's home folder in the workspace:
+#
+#   /Workspace/Users/<user>/northpeak-addons/
+#
+# Builds the full raw → silver → gold chain into a FRESH schema
+# (rtdemo.northpeak_v2) — the live demo-northpeak pipeline (owned by another
+# engineer, feeding the deployed app + dashboard) is left untouched.
+#
+#   1. `databricks bundle deploy -t dev`
+#   2. `databricks bundle run northpeak_gen_v2 -t dev`   → ~3.9M raw rows
+#   3. `databricks bundle run northpeak_ops_v2 -t dev`   → SDP: read_files → silver MVs → gold MVs
+#   4. `databricks bundle run northpeak_ml_v2 -t dev`    → train + register + batch-score the ML model
+#
+bundle:
+  name: northpeak-addons
+
+workspace:
+  root_path: /Users/${workspace.current_user.userName}/northpeak-addons
+
+variables:
+  catalog:
+    description: Unity Catalog the pipeline builds into (must exist).
+    default: rtdemo
+  schema:
+    description: Fresh schema the v2 chain builds (created by this bundle).
+    default: northpeak_v2
+
+resources:
+  schemas:
+    demo_schema:
+      catalog_name: ${var.catalog}
+      name: ${var.schema}
+      comment: "FE Bar addons — NorthPeak v2 pipeline output (built from the northpeak-addons bundle)."
+
+  volumes:
+    raw_data:
+      catalog_name: ${var.catalog}
+      schema_name: ${resources.schemas.demo_schema.name}
+      name: raw_data
+      volume_type: MANAGED
+      comment: "Raw parquet landing zone — generate_data.py writes here; silver MVs read it via read_files()."
+
+  jobs:
+    northpeak_gen_v2:
+      name: "[FE Bar] NorthPeak v2 — generate raw data"
+      description: "Generates the synthetic raw_* parquet datasets into the northpeak_v2 raw_data volume."
+      tasks:
+        - task_key: generate_data
+          notebook_task:
+            notebook_path: ./data_generation/generate_data.py
+            base_parameters:
+              catalog: ${var.catalog}
+              schema: ${resources.schemas.demo_schema.name}
+          environment_key: sdk_default
+      environments:
+        - environment_key: sdk_default
+          spec:
+            client: "4"
+            dependencies:
+              - numpy
+              - pandas
+              - faker
+
+    northpeak_ml_v2:
+      name: "[FE Bar] NorthPeak v2 — train + score recovery model"
+      description: "Trains the XGBoost recovery_recommender, registers it in UC with @prod, and batch-scores open shortfalls into gold_recovery_recommendations_ml."
+      tasks:
+        - task_key: train_score
+          notebook_task:
+            notebook_path: ./transformation/recovery_train_score.py
+            base_parameters:
+              catalog: ${var.catalog}
+              schema: ${resources.schemas.demo_schema.name}
+          environment_key: sdk_default
+      environments:
+        - environment_key: sdk_default
+          spec:
+            client: "4"
+            dependencies:
+              - xgboost
+              - optuna
+              - scikit-learn
+              - mlflow
+
+  pipelines:
+    northpeak_ops_v2:
+      name: "[FE Bar] NorthPeak v2 — raw to silver to gold"
+      serverless: true
+      catalog: ${var.catalog}
+      target: ${resources.schemas.demo_schema.name}
+      development: false
+      continuous: false
+      # The SQL files substitute ${catalog}/${schema} from this configuration.
+      configuration:
+        catalog: ${var.catalog}
+        schema: ${resources.schemas.demo_schema.name}
+      libraries:
+        - file: { path: ./transformation/silver/silver_sales.sql }
+        - file: { path: ./transformation/silver/silver_inventory.sql }
+        - file: { path: ./transformation/silver/silver_transfers.sql }
+        - file: { path: ./transformation/silver/note_markdown_flags.sql }
+        - file: { path: ./transformation/gold/gold_store_sku_position.sql }
+        - file: { path: ./transformation/gold/gold_open_shortfalls.sql }
+        - file: { path: ./transformation/gold/gold_transfer_outcomes.sql }
+        - file: { path: ./transformation/gold/gold_recovery_recommendations.sql }
+
+targets:
+  dev:
+    mode: development
+    default: true
+  prod:
+    mode: production
+    # Production targets require an explicit root_path (no dev prefixing of
+    # schema/resource names — the v2 tables land in rtdemo.northpeak_v2).
+    workspace:
+      root_path: /Users/jaiwant.jonathan@databricks.com/northpeak-addons-prod

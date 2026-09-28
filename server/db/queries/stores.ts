@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm';
+import { sql, eq } from 'drizzle-orm';
 import type { AppDb } from '../index.js';
 import { opsActions } from '../schema.js';
 import type { AuditEntry, MoveOption } from '../schema.js';
@@ -920,6 +920,147 @@ export async function recordRecoveryAction(
     }
 
     return { actionId: action.id, markdownHoldId };
+  });
+}
+
+// ============================================================================
+// Two-stage Act workflow (FE Bar): draft → PROPOSED, approval → APPROVED.
+// Phase 2 of the agent chain writes a 'proposed' row (visible in the queue as
+// awaiting approval); Phase 3's execute flips the latest proposed row for the
+// store×SKU to 'approved' (audit-appended), with the paired markdown_hold on
+// a transfer's source — the same transaction shape as recordRecoveryAction.
+// ============================================================================
+
+export type ProposeArgs = {
+  storeId: string;
+  productId: string;
+  moveType: 'transfer' | 'expedite' | 'substitute' | 'markdown_hold';
+  units: number;
+  sourceStoreId: string | null;
+  draftedRequest: string;
+  predictedRecapturedUsd: number;
+  userEmail: string;
+};
+
+export async function proposeRecoveryAction(
+  db: AppDb,
+  args: ProposeArgs,
+): Promise<{ actionId: string }> {
+  const nowIso = new Date().toISOString();
+  const [row] = await db
+    .insert(opsActions)
+    .values({
+      storeId: args.storeId,
+      productId: args.productId,
+      moveType: args.moveType,
+      sourceStoreId: args.sourceStoreId,
+      units: args.units,
+      draftedRequest: args.draftedRequest,
+      predictedRecapturedUsd: args.predictedRecapturedUsd,
+      status: 'proposed',
+      approvedBy: args.userEmail,
+      auditTrail: [
+        {
+          at: nowIso,
+          by: args.userEmail,
+          action: 'proposed',
+          notes: 'Recovery move drafted — awaiting approval',
+          tool: 'propose_recovery_action',
+        },
+      ],
+    })
+    .returning({ id: opsActions.id });
+  return { actionId: row.id };
+}
+
+export async function approveRecoveryAction(
+  db: AppDb,
+  args: { storeId: string; productId: string; userEmail: string },
+): Promise<{
+  actionId: string;
+  markdownHoldId: string | null;
+  moveType: string;
+  units: number | null;
+  sourceStoreId: string | null;
+  predictedRecapturedUsd: number | null;
+} | null> {
+  return db.transaction(async (tx) => {
+    const res = await tx.execute(sql`
+      SELECT id, move_type, source_store_id, units, predicted_recaptured_usd, audit_trail
+      FROM app_v2.ops_actions
+      WHERE store_id = ${args.storeId} AND product_id = ${args.productId}
+        AND status = 'proposed'
+      ORDER BY created_at DESC
+      LIMIT 1
+      FOR UPDATE
+    `);
+    const row = res.rows[0] as
+      | {
+          id: string;
+          move_type: string;
+          source_store_id: string | null;
+          units: number | null;
+          predicted_recaptured_usd: number | string | null;
+          audit_trail: AuditEntry[] | null;
+        }
+      | undefined;
+    if (!row) return null;
+
+    const now = new Date();
+    const trail: AuditEntry[] = [
+      ...(Array.isArray(row.audit_trail) ? row.audit_trail : []),
+      {
+        at: now.toISOString(),
+        by: args.userEmail,
+        action: 'approved',
+        notes: 'Recovery move approved',
+        tool: 'execute_recovery_action',
+      },
+    ];
+    await tx
+      .update(opsActions)
+      .set({ status: 'approved', decidedAt: now, auditTrail: trail })
+      .where(eq(opsActions.id, row.id));
+
+    // Paired markdown-hold on the transfer's source surplus (same as the
+    // direct-write path).
+    let markdownHoldId: string | null = null;
+    if (row.move_type === 'transfer' && row.source_store_id) {
+      const [hold] = await tx
+        .insert(opsActions)
+        .values({
+          storeId: row.source_store_id,
+          productId: args.productId,
+          moveType: 'markdown_hold',
+          sourceStoreId: null,
+          units: 0,
+          draftedRequest: `Markdown hold on surplus feeding ${args.storeId} transfer`,
+          predictedRecapturedUsd: 0,
+          status: 'approved',
+          approvedBy: args.userEmail,
+          decidedAt: now,
+          auditTrail: [
+            {
+              at: now.toISOString(),
+              by: args.userEmail,
+              action: 'markdown_hold',
+              notes: `Hold surplus at ${row.source_store_id} feeding ${args.storeId}`,
+              tool: 'execute_recovery_action',
+            },
+          ],
+        })
+        .returning({ id: opsActions.id });
+      markdownHoldId = hold.id;
+    }
+
+    return {
+      actionId: row.id,
+      markdownHoldId,
+      moveType: row.move_type,
+      units: row.units,
+      sourceStoreId: row.source_store_id,
+      predictedRecapturedUsd: num(row.predicted_recaptured_usd),
+    };
   });
 }
 

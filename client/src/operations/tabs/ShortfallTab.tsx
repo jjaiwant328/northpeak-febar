@@ -160,17 +160,28 @@ export function ShortfallTab({
         </div>
       ) : null}
 
-      {/* CTA button */}
-      <button
-        onClick={() => {
-          const msg = `What's the best recovery move for Store ${position.storeId} on SKU ${position.productId}?`;
-          dockController.openAndSend(msg);
-          onMutated();
-        }}
-        className="w-full rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:opacity-90 transition-opacity"
-      >
-        Ask the assistant to recover this
-      </button>
+      {/* CTA buttons */}
+      <div className="flex flex-col sm:flex-row gap-2">
+        <button
+          onClick={() => {
+            const msg = `What's the best recovery move for Store ${position.storeId} on SKU ${position.productId}?`;
+            dockController.openAndSend(msg);
+            onMutated();
+          }}
+          className="flex-1 rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:opacity-90 transition-opacity"
+        >
+          Ask the assistant to recover this
+        </button>
+        <button
+          onClick={() => {
+            const msg = `Simulate the recovery options for Store ${position.storeId} on SKU ${position.productId} — show me baseline vs each move side-by-side, and what changes if demand runs 20% higher.`;
+            dockController.openAndSend(msg);
+          }}
+          className="flex-1 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium hover:bg-accent transition-colors"
+        >
+          Simulate what-ifs
+        </button>
+      </div>
     </div>
   );
 }

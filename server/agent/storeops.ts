@@ -54,6 +54,8 @@ import {
   getPosition,
   getRecommendation,
   recordRecoveryAction,
+  proposeRecoveryAction,
+  approveRecoveryAction,
   searchProducts,
 } from '../db/queries/stores.js';
 
@@ -278,6 +280,111 @@ function makeTools(ctx: AgentContext): Tool[] {
       ),
   });
 
+  // ── simulate_recovery — the What-If engine (live-computed, read-only). ──
+  // For a store×SKU, build the side-by-side comparison the executive asks
+  // for: BASELINE vs each recovery option (transfer / expedite / substitute
+  // or markdown_hold for overstock), with units, freight cost, margin impact,
+  // inventory days, and revenue-at-risk AFTER the move. Optional overrides:
+  // units ("what if 40 instead of 60?") and demand_shock_pct ("what if demand
+  // is 20% higher?") — velocity is scaled before everything recomputes.
+  // Numbers are live-computed estimates from the move ranking + position
+  // fields, labeled as such; the agent quotes them and marks the basis.
+  const simulateRecovery = tool({
+    name: 'simulate_recovery',
+    description:
+      'What-if simulator (read-only): for a store×SKU, compare BASELINE vs each recovery option side-by-side — revenue at risk after the move, margin impact, freight cost, inventory days, and expected recovery $. Supports overrides: units ("what if 40 units?") and demand_shock_pct ("what if demand is 20% higher?"). Numbers are live-computed estimates from the move ranking + live position data — say so when quoting them.',
+    parameters: z.object({
+      store_id: z.string().describe('Store id, e.g. STORE-0214.'),
+      product_id: z.string().describe('SKU, e.g. SKU-APP-04412.'),
+      move_type: z
+        .enum(['transfer', 'expedite', 'substitute', 'markdown_hold'])
+        .nullable()
+        .describe('Simulate only this move; null → all options.'),
+      units: z
+        .number()
+        .int()
+        .nullable()
+        .describe('Override the units to move; null → the ranked option’s units.'),
+      demand_shock_pct: z
+        .number()
+        .nullable()
+        .describe('Demand shock, e.g. 20 for +20% velocity; null → as-is.'),
+    }),
+    execute: async ({ store_id, product_id, move_type, units, demand_shock_pct }) =>
+      mlflow.withSpan(
+        async () => {
+          const [position, recommendation] = await Promise.all([
+            getPosition(ctx.db, `${store_id}:${product_id}`),
+            getRecommendation(ctx.db, store_id, product_id),
+          ]);
+          if (!position) return { simulated: false, note: 'Position not found.' };
+
+          const shock = demand_shock_pct ? 1 + demand_shock_pct / 100 : 1;
+          const velocity = (position.avgDailyVelocity ?? 0) * shock;
+          const exposureNow = (position.lostSalesExposureUsd ?? 0) * shock;
+          const markdownNow = position.markdownExposureUsd ?? 0;
+          const invDaysNow =
+            velocity > 0 ? Math.round(((position.onHandUnits ?? 0) / velocity) * 10) / 10 : null;
+
+          const options = (recommendation?.moveRanking ?? []).filter(
+            (o) => !move_type || o.move === move_type,
+          );
+          if (!options.length) {
+            return {
+              simulated: false,
+              note: 'No recovery options to simulate — run rank_recovery_moves first.',
+            };
+          }
+
+          const rows = options.map((o) => {
+            const u = units ?? o.units;
+            const scale = o.units > 0 ? u / o.units : 1;
+            const recovery = o.predictedRecapturedUsd * scale;
+            const cost = o.costUsd * scale;
+            const net = o.predictedNetValueUsd * scale;
+            return {
+              move: o.move,
+              units: u,
+              revenue_risk_after_usd: Math.max(0, Math.round(exposureNow - recovery)),
+              expected_recovery_usd: Math.round(recovery),
+              freight_cost_usd: Math.round(o.move === 'transfer' || o.move === 'expedite' ? cost : 0),
+              margin_impact_usd: Math.round(net - (recovery - cost)),
+              net_value_usd: Math.round(net),
+              inventory_days_after:
+                velocity > 0
+                  ? Math.round((((position.onHandUnits ?? 0) + u) / velocity) * 10) / 10
+                  : null,
+              source_store_id: o.sourceStoreId ?? null,
+              destination_store_id: o.destinationStoreId ?? null,
+            };
+          });
+          rows.sort((a, b) => b.net_value_usd - a.net_value_usd);
+
+          return {
+            simulated: true,
+            basis: 'live-computed estimate from the move ranking + position data',
+            store_id,
+            product_id,
+            demand_shock_pct: demand_shock_pct ?? 0,
+            baseline: {
+              revenue_at_risk_usd: Math.round(exposureNow),
+              markdown_exposure_usd: Math.round(markdownNow),
+              on_hand_units: position.onHandUnits,
+              avg_daily_velocity: Math.round(velocity * 100) / 100,
+              inventory_days: invDaysNow,
+            },
+            options: rows,
+            recommended_move: rows[0]?.move ?? null,
+          };
+        },
+        {
+          name: 'simulate_recovery',
+          spanType: mlflow.SpanType.TOOL,
+          inputs: { store_id, product_id, move_type, units, demand_shock_pct },
+        },
+      ),
+  });
+
   // ── search_products — hybrid Lakebase Search (Milestone 2.4). ─────────────
   // Finds a comparable in-stock item for the SUBSTITUTE recovery option.
   // Embeds the query with databricks-gte-large-en, then RRF-fuses the BM25
@@ -323,6 +430,167 @@ function makeTools(ctx: AgentContext): Tool[] {
   // drafted request text — NEVER a list of ids. Wrap the write(s) in
   // db.transaction(...). On commit the caller emits dataMutated so the
   // Operations page cascades. See APP_WORKSHOP.md → "Layer 3 — Act"
+  // ── propose_recovery_action — Phase-2 draft WRITE (status='proposed'). ───
+  // Records the drafted move as a PROPOSED action so the queue shows it as
+  // awaiting approval (the "Actions Awaiting Approval" state). The approval
+  // step (execute_recovery_action) flips it to 'approved'.
+  const proposeRecoveryActionTool = tool({
+    name: 'propose_recovery_action',
+    description:
+      'Draft-stage WRITE (no approval needed): record the drafted recovery move to Lakebase app.ops_actions with status=proposed — the queue shows it as awaiting approval. Call ONCE at the end of the draft phase, after presenting the ranked options and BEFORE asking for approval.',
+    parameters: z.object({
+      store_id: z.string().describe(
+        'Shortfall flows: destination (short) store id. markdown_hold: the overstock store id itself.',
+      ),
+      product_id: z.string().describe('SKU being recovered, e.g. SKU-APP-04412.'),
+      move_type: z
+        .enum(['transfer', 'expedite', 'substitute', 'markdown_hold'])
+        .describe('The recommended recovery move.'),
+      units: z.number().int().describe('Units to move/expedite/substitute.'),
+      source_store_id: z
+        .string()
+        .nullable()
+        .describe('For a transfer: the surplus source store id. Null otherwise.'),
+      drafted_request: z
+        .string()
+        .describe('The transfer/expedite/substitute request memo drafted for approval.'),
+      predicted_recaptured_usd: z
+        .number()
+        .describe('Predicted recaptured revenue for this move (from rank_recovery_moves).'),
+    }),
+    execute: async (args) =>
+      mlflow.withSpan(
+        async () => {
+          const { actionId } = await proposeRecoveryAction(ctx.db, {
+            storeId: args.store_id,
+            productId: args.product_id,
+            moveType: args.move_type,
+            units: args.units,
+            sourceStoreId: args.source_store_id,
+            draftedRequest: args.drafted_request,
+            predictedRecapturedUsd: args.predicted_recaptured_usd,
+            userEmail: ctx.userEmail,
+          });
+          return { proposed: true, action_id: actionId, status: 'proposed' };
+        },
+        {
+          name: 'propose_recovery_action',
+          spanType: mlflow.SpanType.TOOL,
+          inputs: { store_id: args.store_id, product_id: args.product_id, move_type: args.move_type },
+        },
+      ),
+  });
+
+  // ── check_policy — LLM policy gate via AI Gateway (guarded endpoint). ────
+  // Before any execute, the drafted move is validated by a SECOND, guardrailed
+  // model call through the AI Gateway (spend-capped, content-filtered,
+  // inference-logged): units vs demand need, predicted value sanity, and the
+  // move-type invariants (transfer needs a source; markdown_hold must not
+  // have one). The agent may investigate / simulate / recommend / draft —
+  // only a HUMAN approval + a PASS verdict may execute.
+  const POLICY_ENDPOINT = 'jai-northpeak-guarded';
+  const checkPolicy = tool({
+    name: 'check_policy',
+    description:
+      'REQUIRED before execute_recovery_action: validate the drafted recovery move against the operating policy via the governed AI Gateway. Returns {pass, violations, rationale}. If pass=false, redraft the move and check again — do NOT execute.',
+    parameters: z.object({
+      store_id: z.string().describe('Store the move lands on (destination for transfer/expedite/substitute; the overstock store for markdown_hold).'),
+      product_id: z.string().describe('SKU being recovered.'),
+      move_type: z
+        .enum(['transfer', 'expedite', 'substitute', 'markdown_hold'])
+        .describe('The drafted recovery move.'),
+      units: z.number().int().describe('Units to move.'),
+      source_store_id: z
+        .string()
+        .nullable()
+        .describe('Surplus source store id for a transfer; null otherwise.'),
+      predicted_recaptured_usd: z
+        .number()
+        .describe('Predicted recaptured revenue for this move.'),
+      avg_daily_velocity: z
+        .number()
+        .nullable()
+        .describe('Recent daily velocity at the short store, if known (sanity-checks unit count).'),
+      source_on_hand: z
+        .number()
+        .nullable()
+        .describe('Units available at the source surplus store, if known.'),
+    }),
+    execute: async (args) =>
+      mlflow.withSpan(
+        async () => {
+          const headers = await authHeaders(ctx.req);
+          headers.set('Content-Type', 'application/json');
+          const prompt = [
+            'You are a retail-operations policy validator for an inventory recovery system.',
+            'Validate the drafted recovery move (JSON below) against these policies:',
+            '1. units must be positive and must not exceed 14 days of demand at the given velocity (if velocity is provided).',
+            '2. For a transfer, units must not exceed source_on_hand (if provided) and source_store_id must be present.',
+            '3. For markdown_hold, source_store_id must be null.',
+            '4. predicted_recaptured_usd must be positive.',
+            'Answer EXACTLY in this format:',
+            'VERDICT: PASS or VERDICT: FAIL',
+            'REASON: one short sentence',
+            'VIOLATION: <one line per violated policy, omit if none>',
+            `Drafted move: ${JSON.stringify(args)}`,
+          ].join('\n');
+          try {
+            const resp = await fetch(
+              `${ctx.databricksHost}/serving-endpoints/${POLICY_ENDPOINT}/invocations`,
+              {
+                method: 'POST',
+                headers,
+                signal: AbortSignal.timeout(45_000),
+                body: JSON.stringify({
+                  messages: [
+                    { role: 'system', content: prompt },
+                    { role: 'user', content: 'Validate this drafted move.' },
+                  ],
+                  max_tokens: 250,
+                }),
+              },
+            );
+            if (!resp.ok) {
+              const t = await resp.text().catch(() => '');
+              return {
+                pass: false,
+                violations: [`policy endpoint error ${resp.status}: ${t.slice(0, 200)}`],
+                rationale: 'Policy gate unavailable — do not execute without a PASS.',
+              };
+            }
+            const json = (await resp.json()) as {
+              choices?: Array<{ message?: { content?: string } }>;
+            };
+            const text = json.choices?.[0]?.message?.content ?? '';
+            const verdict = /VERDICT:\s*(PASS|FAIL)/i.exec(text)?.[1]?.toUpperCase();
+            const reason = /REASON:\s*(.+)/i.exec(text)?.[1]?.trim() ?? '';
+            const violations = [...text.matchAll(/VIOLATION:\s*(.+)/gi)]
+              .map((m) => m[1].trim())
+              .filter(Boolean);
+            if (!verdict) {
+              return {
+                pass: false,
+                violations: ['policy validator returned an unparseable verdict'],
+                rationale: text.slice(0, 300),
+              };
+            }
+            return { pass: verdict === 'PASS', violations, rationale: reason };
+          } catch (e) {
+            return {
+              pass: false,
+              violations: [`policy gate call failed: ${(e as Error).message}`],
+              rationale: 'Policy gate unavailable — do not execute without a PASS.',
+            };
+          }
+        },
+        {
+          name: 'check_policy',
+          spanType: mlflow.SpanType.TOOL,
+          inputs: { store_id: args.store_id, product_id: args.product_id, move_type: args.move_type },
+        },
+      ),
+  });
+
   // (+ TEMPLATE_MAP pattern #5, filter-driven bulk writes).
   const executeRecoveryAction = tool({
     name: 'execute_recovery_action',
@@ -359,6 +627,28 @@ function makeTools(ctx: AgentContext): Tool[] {
     }) =>
       mlflow.withSpan(
         async () => {
+          // Two-stage Act workflow: if a PROPOSED row exists for this
+          // store×SKU (written by propose_recovery_action at draft time),
+          // approve it in place; otherwise write the approved row directly.
+          const approved = await approveRecoveryAction(ctx.db, {
+            storeId: store_id,
+            productId: product_id,
+            userEmail: ctx.userEmail,
+          });
+          if (approved) {
+            return {
+              recorded: true,
+              action_id: approved.actionId,
+              approved_from_proposed: true,
+              store_id,
+              product_id,
+              move_type: approved.moveType,
+              units: approved.units,
+              source_store_id: approved.sourceStoreId,
+              predicted_recaptured_usd: approved.predictedRecapturedUsd,
+              markdown_hold: approved.markdownHoldId !== null,
+            };
+          }
           const { actionId, markdownHoldId } = await recordRecoveryAction(ctx.db, {
             storeId: store_id,
             productId: product_id,
@@ -398,7 +688,10 @@ function makeTools(ctx: AgentContext): Tool[] {
   const tools: Tool[] = [
     findShortfall,
     rankRecoveryMoves,
+    simulateRecovery,
     searchProductsTool,
+    proposeRecoveryActionTool,
+    checkPolicy,
     executeRecoveryAction,
   ];
   if (ctx.masEndpointName || ctx.genieSpaceId) {
@@ -588,19 +881,38 @@ rank_recovery_moves(store_id, product_id) — read the ranked moves for a store�
   draft (naming the basis), and do any what-if arithmetically from the ranking
   (don't re-call the model). Read-only.
 
+simulate_recovery(store_id, product_id, move_type?, units?, demand_shock_pct?) —
+  the WHAT-IF engine. Compares BASELINE vs each recovery option side-by-side:
+  revenue at risk after the move, expected recovery $, freight cost, margin
+  impact, inventory days. Use for "what if we transfer 100 units?", "what if
+  we expedite instead?", "what if demand is 20% higher?" (demand_shock_pct=20).
+  Live-computed estimates — quote them as estimates, never as model output.
+
 search_products(query) — hybrid keyword + semantic search over the in-stock
   product catalog (Lakebase Search). Use when the ranked options include a
   SUBSTITUTE: search for a comparable available item (e.g. "warm insulated
   jacket similar to Summit Down Parka") and quote the best in-stock match (name,
   price, on-hand) in the substitute option. Read-only.
 
+propose_recovery_action(store_id, product_id, move_type, units, source_store_id,
+  drafted_request, predicted_recaptured_usd) — DRAFT-STAGE WRITE. Records the
+  drafted move as PROPOSED (awaiting approval) at the end of every draft phase.
+  Does NOT execute anything.
+
+check_policy(store_id, product_id, move_type, units, source_store_id,
+  predicted_recaptured_usd, avg_daily_velocity, source_on_hand) — POLICY GATE
+  (via AI Gateway). REQUIRED before execute_recovery_action; validates the
+  drafted move against the operating policy. On violations, redraft and check
+  again. NEVER execute without a PASS.
+
 execute_recovery_action(store_id, product_id, move_type, units, source_store_id,
   drafted_request, predicted_recaptured_usd) — THE WRITE. Records the approved
   move to Lakebase (transfer/expedite/substitute/markdown_hold) + a markdown-hold
   on the source surplus for a transfer. Shortfall flows: store_id is the SHORT
   (destination) store. Overstock markdown_hold: store_id IS the overstock
-  store. Use ONLY after the user has explicitly approved. Inputs are a FILTER +
-  the drafted request text — never a list of ids.
+  store. Use ONLY after the user has explicitly approved AND check_policy has
+  returned PASS. Inputs are a FILTER + the drafted request text — never a list
+  of ids.
 
 THERE ARE NO OTHER TOOLS.
 
@@ -636,19 +948,29 @@ surplus asks → MODE C.)
      comparable in-stock item and quote it (name, price, on-hand) in that
      option. Recommend the top
      one and explain WHY (e.g. "Transfer ~60 units from STORE-0377 — predicted
-     +$14K recaptured, lowest cost, protects margin both ends"). Offer a what-if
-     ("what if 40 units instead of 60?") computed arithmetically from the
-     ranking. Draft the transfer/expedite/substitute request memo.
-  5. End with: "Reply **approve** to record this transfer — or tell me what to
+     +$14K recaptured, lowest cost, protects margin both ends"). For any
+     what-if ("what if 40 units instead of 60?", "what if demand is 20%
+     higher?"), call simulate_recovery — never re-derive the arithmetic
+     yourself when a tool computes it. Draft the transfer/expedite/substitute
+     request memo.
+  5. Call propose_recovery_action ONCE with the recommended move's filter +
+     the drafted memo — this records the draft as PROPOSED (the queue shows it
+     as awaiting approval).
+  6. End with: "Reply **approve** to record this transfer — or tell me what to
      change." STOP HERE. Do not proceed until the user's next message.
 
 --- Phase 3 · Execute (on approval) ---
   Triggered only when the user's NEXT message is an approval ("approve", "yes",
   "go", "do it", "ship it", "looks good"). A revision request means → redraft
   and go back to Phase 2 (STOP again).
-  On approval: call execute_recovery_action ONCE with the approved move's
-  filter + the drafted request + the predicted recaptured $. Then summarize
-  what was recorded (see SUMMARY FORMAT). Numbers come from the tool result,
+  On approval, in this order:
+    1. Call check_policy with the drafted move (include avg_daily_velocity and
+       source_on_hand when you know them). PASS is REQUIRED — on violations,
+       explain and redraft (back to Phase 2).
+    2. Only after PASS: call execute_recovery_action ONCE with the approved
+       move's filter + the drafted request + the predicted recaptured $. Then
+       summarize what was recorded (see SUMMARY FORMAT). Numbers come from the
+       tool result,
   not memory.
 
 MODE C — OVERSTOCK RECOVERY CHAIN (HUMAN-IN-THE-LOOP)
@@ -667,11 +989,17 @@ confirmation step in the middle, but with the overstock semantics:
   Present both options with units, cost, and predicted recaptured $ / net
   value, saying the numbers are live-computed (the ML model scores shortfall
   positions). Recommend the top one and explain why. Draft the request memo.
-  End with: "Reply **approve** to record this — or tell me what to change."
+  Call propose_recovery_action ONCE to record the draft as PROPOSED, then end
+  with: "Reply **approve** to record this — or tell me what to change."
   STOP HERE.
 
 --- Phase 3 · Execute (on approval) ---
-  On approval: execute_recovery_action ONCE.
+  On approval, in this order:
+    1. Call check_policy with the drafted move — PASS is REQUIRED (on
+       violations, explain and redraft, back to Phase 2).
+    2. After PASS: propose_recovery_action should already have recorded the
+       draft at the end of Phase 2 (call it now if you haven't); then
+       execute_recovery_action ONCE.
     - markdown_hold → store_id = the overstock store, source_store_id = null.
     - transfer → store_id = the shortfall (destination) store,
       source_store_id = the overstock store.

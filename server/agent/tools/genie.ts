@@ -31,6 +31,7 @@ import { loggedTool as tool } from './logged-tool.js';
 import * as mlflow from 'mlflow-tracing';
 import { z } from 'zod';
 import { authHeaders } from '../../lib/auth.js';
+import { callGenieViaMcp } from './genie-mcp.js';
 import type { DataCallResult, DataToolContext, ToolProgressEvent } from './types.js';
 
 /**
@@ -45,6 +46,19 @@ export async function callGenieSpace(
 ): Promise<DataCallResult> {
   function emit(ev: ToolProgressEvent) {
     try { ctx.onToolProgress?.(ev); } catch { /* never let progress fail the tool */ }
+  }
+
+  // MCP-first (managed Genie MCP endpoint), REST fallback. GENIE_MCP=0 forces REST.
+  if (process.env.GENIE_MCP !== '0') {
+    const mcp = await callGenieViaMcp(ctx, spaceId, question);
+    if (mcp) {
+      emit({
+        kind: 'mas_narration',
+        text: `Querying Genie via MCP: "${question.slice(0, 80)}..."`,
+        subAgent: 'genie',
+      });
+      return mcp;
+    }
   }
 
   const headers = await authHeaders(ctx.req);

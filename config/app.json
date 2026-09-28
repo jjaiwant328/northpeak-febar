@@ -54,7 +54,7 @@
     "tables": {
       "storeSkuPosition":        "gold_store_sku_position",
       "openShortfalls":          "gold_open_shortfalls",
-      "recoveryRecommendations": "gold_recovery_recommendations",
+      "recoveryRecommendations": "gold_recovery_recommendations_ml",
       "products":                "raw_products"
     }
   },
