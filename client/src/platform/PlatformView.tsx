@@ -672,10 +672,10 @@ function ActScene() {
             Live
           </text>
           {[
-            'Refund processed · $52',
-            'Coupon sent · CUST-…',
+            'Transfer approved · 121u',
+            'Policy check · PASS',
             'Audit logged',
-            'Refund processed · $68',
+            'Markdown hold · 987u',
           ].map((t, i) => (
             <g key={i} transform={`translate(10 ${28 + i * 12})`}>
               <circle r="2" cx="2" cy="-2" fill="var(--primary)" opacity={1 - i * 0.2} />
@@ -1006,7 +1006,7 @@ function GenieCodeStrip() {
           <span className="dx-genie-prompt-chev">$</span>
           <span className="dx-genie-prompt-text">
             <span className="dx-genie-prompt-typed">
-              ingest turbine telemetry into a daily pipeline
+              build a silver-to-gold pipeline for store inventory
             </span>
             <span className="dx-genie-prompt-caret" />
           </span>
@@ -1065,7 +1065,7 @@ function AgenticAppsStrip() {
         <span className="dx-genie-strip-label">
           <strong>Enable agentic apps</strong>
           <span className="dx-genie-strip-sub">
-            Turn your docs into experts. Route questions to the right specialist agent.
+            Turn your docs into experts. Route questions to the right specialist agent. — future capability for NorthPeak
           </span>
         </span>
       </div>
@@ -1078,7 +1078,7 @@ function AgenticAppsStrip() {
         <div className="dx-mas-question">
           <span className="dx-mas-question-chev">?</span>
           <span className="dx-mas-question-text">
-            <span className="dx-mas-question-typed">Why are refunds up?</span>
+            <span className="dx-mas-question-typed">Why are stockouts spiking in the North?</span>
             <span className="dx-mas-question-caret" />
           </span>
         </div>
@@ -1105,14 +1105,14 @@ function AgenticAppsStrip() {
               <BookOpen className="size-3" />
             </span>
             <span className="dx-mas-agent-name">Knowledge Assistant</span>
-            <span className="dx-mas-agent-task">searching refund policy…</span>
+            <span className="dx-mas-agent-task">searching vendor playbooks…</span>
           </div>
           <div className="dx-mas-agent dx-mas-agent-3">
             <span className="dx-mas-agent-icon">
               <Box className="size-3" />
             </span>
             <span className="dx-mas-agent-name">Entity extraction</span>
-            <span className="dx-mas-agent-task">parsing customer claims…</span>
+            <span className="dx-mas-agent-task">parsing supplier notices…</span>
           </div>
         </div>
 

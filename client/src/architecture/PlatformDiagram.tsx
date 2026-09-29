@@ -1,9 +1,12 @@
 /**
- * PlatformDiagram — the "Running LuxeBeauty Returns on the Databricks
+ * PlatformDiagram — the "Running NorthPeak Store Ops on the Databricks
  * Platform" panel that sits on top of the /platform page. Mirrors the
  * official Data + AI Platform slide layout: a single bordered box with
  * row labels on the left and product tiles on the right, plus a flowing
- * data path UP from the four datasources through Zerobus.
+ * data path UP from the governed sources.
+ *
+ * Tiles that are roadmap items rather than live in this build carry a
+ * dashed FUTURE tag (Zerobus ingest, Agent Bricks MAS, doc volumes).
  *
  * Workspace deep-links are fetched from /api/resources at mount. The
  * server composes them from DATABRICKS_HOST + config/app.json (the IDs).
@@ -31,6 +34,7 @@ import {
   LakebaseIcon,
   LakeflowIcon,
   LakehouseIcon,
+  MlflowIcon,
   OneIcon,
   RtBadge,
   SRC,
@@ -187,6 +191,14 @@ a.pd-lfgrp:hover{background:color-mix(in srgb, var(--accent) 10%, transparent)}
   box-shadow:0 0 6px color-mix(in srgb, var(--accent) 80%, transparent);
   vertical-align:middle;margin:0 4px 1px 0}
 
+/* FUTURE tag — dashed amber pill marking roadmap (not-yet-live) tiles */
+.pd-future{display:inline-block;margin-left:8px;padding:2px 7px;border-radius:99px;
+  border:1px dashed var(--status-warning, #e8a33d);color:var(--status-warning, #e8a33d);
+  font:700 9px 'DM Mono',monospace;letter-spacing:.14em;text-transform:uppercase;
+  vertical-align:2px;white-space:nowrap}
+.pd-is-future{opacity:.62}
+.pd-is-future .pd-tile{border-style:dashed}
+
 @media (max-width:1180px){
   .pd-story{flex-wrap:wrap;gap:14px}
 }
@@ -203,7 +215,7 @@ a.pd-lfgrp:hover{background:color-mix(in srgb, var(--accent) 10%, transparent)}
 // ─── A "product card" — white tile + title + sub. Optional href makes it
 // clickable (live workspace deep-link); optional rt adds the ⚡RT badge.
 function Prod({
-  href, icon, title, sub, rt, after,
+  href, icon, title, sub, rt, after, future,
 }: {
   href?: string;
   icon: React.ReactNode;
@@ -211,6 +223,8 @@ function Prod({
   sub: string;
   rt?: boolean;
   after?: React.ReactNode;
+  /** Roadmap tile — renders dimmed with a dashed FUTURE tag, never linked. */
+  future?: boolean;
 }) {
   const body = (
     <>
@@ -219,20 +233,21 @@ function Prod({
         <b>
           {title}
           {rt ? <RtBadge /> : null}
-          {href ? <span className="pd-live" /> : null}
+          {href && !future ? <span className="pd-live" /> : null}
+          {future ? <span className="pd-future">future</span> : null}
           {after}
         </b>
         <span className="pd-sub">{sub}</span>
       </span>
     </>
   );
-  return href ? (
+  return href && !future ? (
     <a className="pd-prod" href={href} target="_blank" rel="noopener noreferrer"
        title="Opens the live resource in the Databricks workspace">
       {body}
     </a>
   ) : (
-    <div className="pd-prod">{body}</div>
+    <div className={`pd-prod${future ? ' pd-is-future' : ''}`}>{body}</div>
   );
 }
 
@@ -279,14 +294,14 @@ export function PlatformDiagram() {
   const href = (u: string) => (u ? u : undefined);
 
   return (
-    <section className="pd-root" aria-label="LuxeBeauty on the Databricks Platform">
+    <section className="pd-root" aria-label="NorthPeak Store Ops on the Databricks Platform">
       <style>{CSS}</style>
       <div className="pd-wrap">
         <div className="pd-hero">
           <div className="pd-brand">Databricks Platform</div>
-          <div className="pd-kick">LuxeBeauty · Returns Intelligence</div>
+          <div className="pd-kick">NorthPeak Retail · Stockout &amp; Markdown Rescue</div>
           <h2>
-            Running LuxeBeauty Returns on the{' '}
+            Running NorthPeak Store Ops on the{' '}
             <span className="pd-hl">Databricks Platform</span>
           </h2>
         </div>
@@ -302,14 +317,14 @@ export function PlatformDiagram() {
             <Prod
               href={href(R.app.url)}
               icon={<AppsIcon />}
-              title="Returns Console"
-              sub="This app — queue, agent, refunds, all in one place"
+              title="Store Ops Console"
+              sub="This app — map, assistant, what-if simulator, approvals, all in one place"
             />
             <Prod
               href={href(R.dashboard.url)}
               icon={<AIBIIcon />}
               title="AI/BI Dashboard"
-              sub="Where the returns are coming from — same numbers, one page"
+              sub="Lost-sales and markdown exposure by region — same numbers, one page"
             />
           </Row>
 
@@ -360,7 +375,7 @@ export function PlatformDiagram() {
                   <span className="pd-chip"><AgentsIcon />AGENTS</span>
                   <span className="pd-chip"><CodeIcon />CODE</span>
                 </span>
-                <span className="pd-sub">"Why do I have so many returns?"</span>
+                <span className="pd-sub">"How much are we losing to stockouts?" — answered over the managed MCP endpoint</span>
               </span>
             </div>
             {/* Default href = the workspace-wide Agent Bricks landing
@@ -372,10 +387,10 @@ export function PlatformDiagram() {
                   href={href(R.mas.url)}
                 which deep-links to {host}/ml/endpoints/{masEndpointName}. */}
             <Prod
-              href={href(R.agentBricks.url)}
               icon={<AgentBricksIcon />}
               title="Agent Bricks"
-              sub="Diagnose the spike, draft apology emails, file refunds"
+              sub="Multi-agent orchestration across ops domains — vendor, replenishment, logistics"
+              future
             />
           </Row>
 
@@ -389,19 +404,25 @@ export function PlatformDiagram() {
               href={href(R.catalog.url)}
               icon={<UCIcon />}
               title="Unity Catalog"
-              sub="retail_consumer_goods.luxebeauty_demo — one governed schema + lineage"
+              sub="rtdemo.northpeak_v2 — gold tables + recovery_recommender @prod, one lineage"
             />
             <Prod
               href={href(R.gateway.url)}
               icon={<GatewayIcon />}
               title="Unity AI Gateway"
-              sub="Every agent LLM call governed — security + cost"
+              sub="Guarded endpoint jai-northpeak-guarded — spend caps, guardrails, inference logs; check_policy gates every write"
+            />
+            <Prod
+              href={href(R.model.url)}
+              icon={<MlflowIcon />}
+              title="MLflow"
+              sub="Every agent turn traced end-to-end; XGBoost recovery_recommender registered v6 @prod"
             />
           </Row>
 
           <Row
             ttl="Agentic Data"
-            sub="Unified, real-time data foundation — the returns story"
+            sub="Unified, real-time data foundation — the availability story"
           >
             <div className="pd-story">
               <FlowKeyframes />
@@ -438,7 +459,7 @@ export function PlatformDiagram() {
                   href={href(R.lakebase.url)}
                   icon={<LakebaseIcon />}
                   title="Lakebase"
-                  sub="Returns Console reads/writes the queue live · branch on reset"
+                  sub="Proposed → approved actions with full audit trail · branched per app"
                 />
               </div>
             </div>
@@ -458,36 +479,35 @@ export function PlatformDiagram() {
           <div className="pd-fl"><i style={{ animationDelay: '.5s' }} /><i /></div>
           <div className="pd-fl"><i style={{ animationDelay: '.9s' }} /><i /></div>
           <div className="pd-fl"><i style={{ animationDelay: '.3s' }} /><i /></div>
-          <span className="pd-zb" title="Zerobus · real-time ingest">
-            <ZerobusBolt />Zerobus · real-time ingest
+          <span className="pd-zb pd-is-future" title="Zerobus · real-time POS ingest — future capability">
+            <ZerobusBolt />Zerobus · real-time POS ingest
+            <span className="pd-future">future</span>
           </span>
-          <a
-            className="pd-zb pd-up"
-            href={href(R.volume.url)}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Manufacturing PDFs on a Unity Catalog Volume"
+          <span
+            className="pd-zb pd-up pd-is-future"
+            title="Supplier docs on a Unity Catalog Volume — future capability"
           >
-            <UploadArrow />Upload · file on Volume
-          </a>
+            <UploadArrow />Supplier docs → Volume
+            <span className="pd-future">future</span>
+          </span>
         </div>
 
         <div className="pd-sources">
           <div className="pd-src">
             <span className="pd-tile"><SrcIcon d={SRC.scan} /></span>
-            <span className="pd-tx"><b>Order POS</b><span>400K orders · 24mo</span></span>
-          </div>
-          <div className="pd-src">
-            <span className="pd-tile"><SrcIcon d={SRC.bet} /></span>
-            <span className="pd-tx"><b>CS Tickets</b><span>returns · sentiment</span></span>
+            <span className="pd-tx"><b>Store POS</b><span>3.3M sales rows · 400 stores</span></span>
           </div>
           <div className="pd-src">
             <span className="pd-tile"><SrcIcon d={SRC.odds} /></span>
-            <span className="pd-tx"><b>Production Lots</b><span>QC + lot manifests</span></span>
+            <span className="pd-tx"><b>Inventory</b><span>254,900 store-SKU positions</span></span>
+          </div>
+          <div className="pd-src">
+            <span className="pd-tile"><SrcIcon d={SRC.bet} /></span>
+            <span className="pd-tx"><b>Transfers</b><span>40,000 moves · realized outcomes</span></span>
           </div>
           <div className="pd-src">
             <span className="pd-tile"><SrcIcon d={SRC.pdf} /></span>
-            <span className="pd-tx"><b>Manufacturing PDFs</b><span>incident reports → KA</span></span>
+            <span className="pd-tx"><b>Product catalog</b><span>SKUs · price · category</span></span>
           </div>
         </div>
 

@@ -82,9 +82,18 @@ export function ChatDock() {
   // route, the dock auto-adopts that conversation so the chat carries over.
   const lastChatRouteId = useRef<string | null>(null);
   // When the operations position drawer is open, the dock shifts left of it
-  // (drawer is 640px at lg+) so both stay visible — no overlap.
+  // (drawer is 60vw, 640px at lg+) so both stay visible — no overlap. The
+  // drawer context (store/SKU) tailors the "Suggested next" chip.
   const [drawerOpen, setDrawerOpen] = useState(false);
-  useEffect(() => drawerState.subscribe(setDrawerOpen), []);
+  const [drawerCtx, setDrawerCtx] = useState<{ storeId: string; productId: string } | null>(null);
+  useEffect(
+    () =>
+      drawerState.subscribe((open, ctx) => {
+        setDrawerOpen(open);
+        setDrawerCtx(ctx);
+      }),
+    [],
+  );
 
   const hidden = location.pathname.startsWith('/c/');
 
@@ -387,10 +396,17 @@ export function ChatDock() {
     setInput('');
   }
 
-  const nextStep = useMemo(
-    () => pickNextStep(config?.assistantScript ?? [], messages),
-    [config, messages],
-  );
+  const nextStep = useMemo(() => {
+    // Drawer context wins: the suggestion must follow the store being
+    // analyzed, not the generic script rail.
+    if (drawerOpen && drawerCtx) {
+      return {
+        label: `Recover ${drawerCtx.storeId}`,
+        prompt: `What's the best recovery move for Store ${drawerCtx.storeId} on SKU ${drawerCtx.productId}? Propose it, check it against policy, and execute it if it passes.`,
+      };
+    }
+    return pickNextStep(config?.assistantScript ?? [], messages);
+  }, [config, messages, drawerOpen, drawerCtx]);
 
   if (hidden) return null;
 
@@ -403,13 +419,14 @@ export function ChatDock() {
           streaming={turn.streaming}
           completed={turn.thinkingCompleted}
           onClose={() => turn.setThinkingClosed(true)}
+          elevated={drawerOpen}
         />
       )}
 
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          className={`fixed bottom-4 sm:bottom-6 z-40 inline-flex items-center gap-2 sm:gap-3 rounded-full px-4 sm:px-6 py-3 sm:py-3.5 text-sm sm:text-base font-semibold shadow-lg hover:shadow-xl hover:scale-105 active:scale-100 transition-all duration-200 ${drawerOpen ? 'right-4 sm:right-[calc(60vw+24px)] lg:right-[656px]' : 'right-4 sm:right-6'}`}
+          className={`fixed bottom-4 sm:bottom-6 inline-flex items-center gap-2 sm:gap-3 rounded-full px-4 sm:px-6 py-3 sm:py-3.5 text-sm sm:text-base font-semibold shadow-lg hover:shadow-xl hover:scale-105 active:scale-100 transition-all duration-200 ${drawerOpen ? 'z-[60] right-4 sm:right-[calc(60vw+24px)] lg:right-[656px]' : 'z-40 right-4 sm:right-6'}`}
           style={{
             background: 'var(--dock-gradient)',
             color: 'var(--primary-foreground)',
@@ -427,7 +444,7 @@ export function ChatDock() {
         // corner (no margin) — reads as a docked panel, not a floating
         // popup. Only the top-left corner gets rounded so the inside corner
         // against the viewport edge stays sharp.
-        <div className={`fixed inset-0 sm:inset-auto sm:bottom-0 z-40 sm:h-[760px] sm:max-h-[92vh] sm:rounded-tl-2xl border-0 sm:border-l sm:border-t border-border bg-card shadow-2xl flex flex-col overflow-hidden ${drawerOpen ? 'sm:right-[60vw] sm:w-[38vw] lg:right-[640px] lg:w-[440px]' : 'sm:right-0 sm:w-[440px]'}`}>
+        <div className={`fixed inset-0 sm:inset-auto sm:bottom-0 sm:h-[760px] sm:max-h-[92vh] sm:rounded-tl-2xl border-0 sm:border-l sm:border-t border-border bg-card shadow-2xl flex flex-col overflow-hidden ${drawerOpen ? 'z-[60] sm:right-[60vw] sm:w-[38vw] lg:right-[640px] lg:w-[440px]' : 'z-40 sm:right-0 sm:w-[440px]'}`}>
           {/* Header — clicking anywhere on it (outside the action buttons)
               collapses the dock. Same behavior as the X button.
               On mobile the dock is full-screen, so we add a prominent

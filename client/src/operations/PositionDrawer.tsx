@@ -52,7 +52,13 @@ export function PositionDrawer({ id, open, onOpenChange, onMutated }: Props) {
     }
     setLoading(true);
     fetchPosition(id)
-      .then(setDetail)
+      .then((d) => {
+        setDetail(d);
+        drawerState.setContext({
+          storeId: d.position.storeId,
+          productId: d.position.productId,
+        });
+      })
       .catch((e) => setError((e as Error).message))
       .finally(() => setLoading(false));
     const unsub = dataMutated.subscribe(() => {

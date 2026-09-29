@@ -59,6 +59,9 @@ type Props = {
   streaming: boolean;
   completed: boolean;
   onClose: () => void;
+  /** Rise above the operations drawer's dim overlay (z-50) so the panel
+   *  stays readable + clickable while a drawer-driven turn runs. */
+  elevated?: boolean;
 };
 
 // Anchor: bottom-left, 20px in from each edge. The panel uses a fixed
@@ -85,7 +88,7 @@ function defaultPosition(): { left: number; top: number } {
 const AUTO_DISMISS_DELAY_MS = 3000;
 const FADE_DURATION_MS = 600;
 
-export function ThinkingPanel({ events, streaming, completed, onClose }: Props) {
+export function ThinkingPanel({ events, streaming, completed, onClose, elevated }: Props) {
   const [autoDismissed, setAutoDismissed] = useState(false);
   const [fadingOut, setFadingOut] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -184,7 +187,7 @@ export function ThinkingPanel({ events, streaming, completed, onClose }: Props) 
 
   return (
     <div
-      className="fixed z-40 w-[clamp(420px,32vw,560px)]"
+      className={`fixed ${elevated ? 'z-[60]' : 'z-40'} w-[clamp(420px,32vw,560px)]`}
       style={{
         left: pos.left,
         top: pos.top,
@@ -312,13 +315,29 @@ function ThinkingEventRow({ event }: { event: MergedEvent }) {
       </div>
     );
   }
+  // What-if simulations get a distinct treatment so the scenario step stands
+  // out from routine data lookups in the trail.
+  const isSim = event.name === 'simulate_recovery';
   return (
     <div
-      className="border-l-2 pl-3 space-y-1"
-      style={{ borderColor: 'var(--accent)' }}
+      className={`border-l-2 pl-3 space-y-1 ${isSim ? 'rounded-r-md py-1.5 pr-2' : ''}`}
+      style={{
+        borderColor: isSim ? 'var(--status-warning, #e8a33d)' : 'var(--accent)',
+        background: isSim ? 'color-mix(in srgb, var(--status-warning, #e8a33d) 8%, transparent)' : undefined,
+      }}
     >
       <div className="flex items-baseline gap-1.5">
-        <span className="font-semibold text-foreground">🔧 {event.name}</span>
+        <span className="font-semibold text-foreground">
+          {isSim ? '📊 simulate_recovery' : `🔧 ${event.name}`}
+        </span>
+        {isSim && (
+          <span
+            className="text-[9px] font-bold uppercase tracking-[0.12em] rounded px-1.5 py-0.5"
+            style={{ background: 'var(--status-warning, #e8a33d)', color: '#1a1a1a' }}
+          >
+            What-if
+          </span>
+        )}
         {event.output === undefined && (
           // In-flight: matched tool_output hasn't arrived yet. The
           // dispatcher fires tool_call immediately, then the long-running

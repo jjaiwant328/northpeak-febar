@@ -79,13 +79,13 @@ export function IngestionFlow() {
       <div className="flex justify-center" style={{ marginBottom: 38 }}>
         <div className="inline-flex items-start" style={{ gap: 2 }}>
           <Stage bare icon={<DataEventsIcon />} name="Data" sub="POS · web · CS" />
-          <Connector />
+          <Connector width={56} />
           <Stage icon={<LakeflowIcon />} name="Pipeline" sub="silver → gold" />
-          <Connector />
-          <Stage icon={<MlflowIcon />} name="MLflow" sub="train · register · trace" />
-          <Connector />
+          <Connector width={56} />
+          <Stage icon={<MlflowIcon />} name="MLflow" sub="train · trace" />
+          <Connector width={56} />
           <Stage icon={<LakebaseIcon />} name="Lakebase" sub="serverless PG" />
-          <Connector />
+          <Connector width={56} />
           <Stage icon={<AppsIcon />} name="This app" sub="Databricks App" />
         </div>
       </div>
