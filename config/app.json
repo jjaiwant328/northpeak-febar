@@ -69,15 +69,15 @@
   // The NorthPeak investigate → rank → approve flow.
   "assistantScript": [
     {
-      "prompt": "Why is Store 214 out of the Summit Down Parka, and what are my options?"
+      "prompt": "Which store has the worst stockout right now, and what are my options?"
     },
     {
-      "prompt": "Rank the recovery move. Use the model.",
-      "triggerAfter": ["short", "shortfall", "options", "Store 214", "surplus"]
+      "prompt": "Rank the recovery moves with the model — transfer vs expedite vs substitute.",
+      "triggerAfter": ["short", "shortfall", "options", "surplus"]
     },
     {
-      "prompt": "Yes — approve the transfer.",
-      "triggerAfter": ["transfer", "recover", "approve", "recaptured"]
+      "prompt": "Propose the top move, check it against policy, and execute it if it passes.",
+      "triggerAfter": ["transfer", "expedite", "recover", "recaptured", "net value"]
     }
   ]
 }

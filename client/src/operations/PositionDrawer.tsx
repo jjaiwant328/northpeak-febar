@@ -18,6 +18,7 @@ import {
 } from '@databricks/appkit-ui/react';
 import { fetchPosition } from '@/lib/stores';
 import { dataMutated } from '@/lib/events';
+import { drawerState } from './drawerState';
 import { StatusBadge } from '@/shared/badges';
 import type { PositionDetail } from '@/shared/types';
 
@@ -36,6 +37,13 @@ export function PositionDrawer({ id, open, onOpenChange, onMutated }: Props) {
   const [detail, setDetail] = useState<PositionDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Publish open state so the ChatDock can dock left of this drawer.
+  // Cleanup on unmount (page nav) reports closed.
+  useEffect(() => {
+    drawerState.setOpen(open);
+    return () => drawerState.setOpen(false);
+  }, [open]);
 
   useEffect(() => {
     if (!id) {
