@@ -219,7 +219,8 @@ base = (
     .drop("sub_category")
     .join(regions.alias("r_short"), shortfalls["store_id"] == F.col("r_short.store_id"), "left")
     .join(regions.alias("r_surp"), shortfalls["nearest_surplus_store_id"] == F.col("r_surp.store_id"), "left")
-    .withColumn("same_region_bool", F.col("r_short.region") == F.col("r_surp.region"))
+    .withColumn("same_region_bool",
+                F.coalesce(F.col("r_short.region") == F.col("r_surp.region"), F.lit(False)))
     .select(
         shortfalls["*"], "price_usd", "margin_pct", "substitute_product_id", "same_region_bool",
     )
