@@ -409,7 +409,7 @@ export function ChatDock() {
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          className={`fixed bottom-4 sm:bottom-6 z-40 inline-flex items-center gap-2 sm:gap-3 rounded-full px-4 sm:px-6 py-3 sm:py-3.5 text-sm sm:text-base font-semibold shadow-lg hover:shadow-xl hover:scale-105 active:scale-100 transition-all duration-200 ${drawerOpen ? 'right-4 sm:right-6 lg:right-[656px]' : 'right-4 sm:right-6'}`}
+          className={`fixed bottom-4 sm:bottom-6 z-40 inline-flex items-center gap-2 sm:gap-3 rounded-full px-4 sm:px-6 py-3 sm:py-3.5 text-sm sm:text-base font-semibold shadow-lg hover:shadow-xl hover:scale-105 active:scale-100 transition-all duration-200 ${drawerOpen ? 'right-4 sm:right-[calc(60vw+24px)] lg:right-[656px]' : 'right-4 sm:right-6'}`}
           style={{
             background: 'var(--dock-gradient)',
             color: 'var(--primary-foreground)',
@@ -427,7 +427,7 @@ export function ChatDock() {
         // corner (no margin) — reads as a docked panel, not a floating
         // popup. Only the top-left corner gets rounded so the inside corner
         // against the viewport edge stays sharp.
-        <div className={`fixed inset-0 sm:inset-auto sm:bottom-0 z-40 sm:w-[440px] sm:h-[760px] sm:max-h-[92vh] sm:rounded-tl-2xl border-0 sm:border-l sm:border-t border-border bg-card shadow-2xl flex flex-col overflow-hidden ${drawerOpen ? 'sm:right-0 lg:right-[640px]' : 'sm:right-0'}`}>
+        <div className={`fixed inset-0 sm:inset-auto sm:bottom-0 z-40 sm:h-[760px] sm:max-h-[92vh] sm:rounded-tl-2xl border-0 sm:border-l sm:border-t border-border bg-card shadow-2xl flex flex-col overflow-hidden ${drawerOpen ? 'sm:right-[60vw] sm:w-[38vw] lg:right-[640px] lg:w-[440px]' : 'sm:right-0 sm:w-[440px]'}`}>
           {/* Header — clicking anywhere on it (outside the action buttons)
               collapses the dock. Same behavior as the X button.
               On mobile the dock is full-screen, so we add a prominent

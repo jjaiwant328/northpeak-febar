@@ -168,6 +168,16 @@ export const ZerobusBolt = () => (
   </svg>
 );
 
+/** MLflow — flask + rising training curve (experiment tracking). */
+export const MlflowIcon = () => (
+  <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M19 6h10v6l7.2 22.4c1.6 4.9-2.1 9.6-7.3 9.6H19.1c-5.2 0-8.9-4.7-7.3-9.6L19 12V6z" fill={LIGHT} />
+    <path d="M17 6h14v3H17z" fill={SOLID} />
+    <path d="M14 34l6-7 4 3 8-9" stroke={SOLID} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+    <circle cx="32" cy="21" r="2.4" fill={SOLID} />
+  </svg>
+);
+
 /** Small ⚡RT badge — used as a chip next to Lakehouse. */
 export function RtBadge() {
   return (

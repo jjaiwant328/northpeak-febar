@@ -3,8 +3,8 @@
  * the viewer where the numbers in the queue (Pending / Approved /
  * Escalated) actually come from:
  *
- *   Data (POS · web · CS) → Zerobus → Pipeline (silver → gold)
- *                        → Lakebase → This app
+ *   Data (POS · web · CS) → Pipeline (silver → gold) → MLflow (train ·
+ *   register · trace) → Lakebase → This app
  *
  * The first node is a bespoke "raw shapes" glyph (no white tile) so it
  * reads as unstructured input rather than a product logo; the rest use
@@ -15,7 +15,7 @@ import {
   AppsIcon,
   LakebaseIcon,
   LakeflowIcon,
-  ZerobusBolt,
+  MlflowIcon,
 } from './icons';
 
 /** Raw "data" glyph — three rows of mixed shapes (dot · square · triangle)
@@ -62,14 +62,15 @@ export function IngestionFlow() {
   return (
     <section
       className="rounded-xl border border-border bg-card p-4 sm:p-5"
-      aria-label="Live data ingestion pipeline"
+      aria-label="Data pipeline and MLflow model flow"
     >
       <FlowKeyframes />
       <p className="text-sm text-muted-foreground mb-3 leading-relaxed">
-        Order data flows in real time through{' '}
-        <b className="text-foreground">Zerobus</b>,{' '}
-        <b className="text-foreground">Lakeflow</b>, and{' '}
-        <b className="text-foreground">Lakebase</b>.
+        The pipeline builds gold; an XGBoost model trained and tracked in{' '}
+        <b className="text-foreground">MLflow</b> (registered in{' '}
+        <b className="text-foreground">Unity Catalog</b>, traced on every
+        agent turn) scores each recovery move;{' '}
+        <b className="text-foreground">Lakebase</b> serves it to the app.
       </p>
 
       {/* the pipeline — centered inside the card.
@@ -79,17 +80,9 @@ export function IngestionFlow() {
         <div className="inline-flex items-start" style={{ gap: 2 }}>
           <Stage bare icon={<DataEventsIcon />} name="Data" sub="POS · web · CS" />
           <Connector />
-          <Stage
-            icon={
-              <span style={{ color: '#EF5B3F', display: 'block', width: '100%', height: '100%' }}>
-                <ZerobusBolt />
-              </span>
-            }
-            name="Zerobus"
-            sub="real-time ingest"
-          />
-          <Connector />
           <Stage icon={<LakeflowIcon />} name="Pipeline" sub="silver → gold" />
+          <Connector />
+          <Stage icon={<MlflowIcon />} name="MLflow" sub="train · register · trace" />
           <Connector />
           <Stage icon={<LakebaseIcon />} name="Lakebase" sub="serverless PG" />
           <Connector />
