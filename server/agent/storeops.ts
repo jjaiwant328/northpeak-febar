@@ -535,21 +535,35 @@ function makeTools(ctx: AgentContext): Tool[] {
             `Drafted move: ${JSON.stringify(args)}`,
           ].join('\n');
           try {
-            const resp = await fetch(
-              `${ctx.databricksHost}/serving-endpoints/${POLICY_ENDPOINT}/invocations`,
-              {
-                method: 'POST',
-                headers,
-                signal: AbortSignal.timeout(45_000),
-                body: JSON.stringify({
-                  messages: [
-                    { role: 'system', content: prompt },
-                    { role: 'user', content: 'Validate this drafted move.' },
-                  ],
-                  max_tokens: 250,
-                }),
-              },
-            );
+            // Cold-start tolerance: a guarded pay-per-token endpoint can take
+            // >45s on its first invocation after idle. One retry with a
+            // doubled budget turns that cold miss into a slow PASS instead of
+            // a blocked execution.
+            let resp: Response | null = null;
+            for (const budgetMs of [45_000, 120_000]) {
+              try {
+                resp = await fetch(
+                  `${ctx.databricksHost}/serving-endpoints/${POLICY_ENDPOINT}/invocations`,
+                  {
+                    method: 'POST',
+                    headers,
+                    signal: AbortSignal.timeout(budgetMs),
+                    body: JSON.stringify({
+                      messages: [
+                        { role: 'system', content: prompt },
+                        { role: 'user', content: 'Validate this drafted move.' },
+                      ],
+                      max_tokens: 250,
+                    }),
+                  },
+                );
+                break;
+              } catch (e) {
+                if ((e as Error).name !== 'TimeoutError' && (e as Error).name !== 'AbortError') throw e;
+                console.warn(`[check_policy] ${POLICY_ENDPOINT} timed out after ${budgetMs}ms — retrying with longer budget`);
+              }
+            }
+            if (!resp) throw new Error('gateway timeout after retry');
             if (!resp.ok) {
               const t = await resp.text().catch(() => '');
               return {
