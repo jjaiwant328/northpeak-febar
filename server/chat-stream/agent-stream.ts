@@ -3,9 +3,9 @@ import * as mlflow from 'mlflow-tracing';
 import {
   buildAgent as buildStoreOpsAgent,
   configureAgentsSdk,
-  run as runAgent,
   type AgentContext,
 } from '../agent/storeops.js';
+import type { AgentInputItem } from '@openai/agents';
 import { fixMojibake } from '../lib/endpoint.js';
 import type { AppDb } from '../db/index.js';
 import type { ThinkingEntry } from '../db/schema.js';
@@ -203,9 +203,7 @@ export async function streamAgentTurn(args: {
           : { role: 'user' as const, content: m.content },
       );
     const runInput =
-      history.length > 1
-        ? (history as Parameters<typeof runAgent>[1])
-        : userInput;
+      history.length > 1 ? (history as AgentInputItem[]) : userInput;
     runStartMs = Date.now();
     // Dump role sequence (not content — keep logs readable) so a malformed
     // history like [user, user, user, ...] (no assistants) is obvious. The
@@ -217,7 +215,10 @@ export async function streamAgentTurn(args: {
     console.debug(
       `[agent-stream] runAgent start — history_len=${messages.length} filtered_len=${Array.isArray(runInput) ? (runInput as unknown[]).length : 1} input_chars=${userInput.length} roles=[${roleSeq}]`,
     );
-    const stream = await runAgent(agent, runInput as string, { stream: true, signal });
+    // ctx.runner is the per-request Runner from configureAgentsSdk — never
+    // the SDK global client (concurrent streams would cross-authenticate).
+    if (!ctx.runner) throw new Error('agent runner not configured');
+    const stream = await ctx.runner.run(agent, runInput, { stream: true, signal });
     console.debug(
       `[agent-stream] runAgent returned stream in ${Date.now() - runStartMs}ms`,
     );
@@ -432,7 +433,19 @@ export async function streamAgentTurn(args: {
     // shim) over the SDK's stripped "400 status code (no body)". This is
     // what the user sees in the chat error bubble — make it actionable.
     const detail = modelError.current;
-    if (detail) {
+    if (
+      detail &&
+      detail.status === 403 &&
+      detail.bodyText.includes('Invalid Token')
+    ) {
+      // The shim already retried 3× with a re-derived credential. What the
+      // user needs now is not the raw platform string but what to do.
+      caughtError =
+        'The model endpoint kept rejecting a stale session credential ' +
+        '(403 Invalid Token) after 3 automatic retries. Your message was ' +
+        'not processed — send it again. If it persists, reload the page to ' +
+        'refresh your session.';
+    } else if (detail) {
       const friendly = detail.message
         ? `${detail.code ?? `HTTP ${detail.status}`}: ${detail.message}`
         : `HTTP ${detail.status} from ${detail.url}: ${detail.bodyText.slice(0, 500)}`;

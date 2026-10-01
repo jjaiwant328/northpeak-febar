@@ -35,8 +35,8 @@ import type { Request } from 'express';
 import OpenAI from 'openai';
 import {
   Agent,
-  run,
-  setDefaultOpenAIClient,
+  Runner,
+  OpenAIProvider,
   setTracingDisabled,
 } from '@openai/agents';
 import type { Tool } from '@openai/agents';
@@ -131,6 +131,12 @@ export type AgentContext = {
   onToolProgress?: (ev: import('./tools/types.js').ToolProgressEvent) => void;
   /** Mutated by the OpenAI fetch shim on any non-2xx. */
   modelError?: { current: ModelErrorDetail | null };
+  /** Per-request Runner built from the per-request OpenAI client in
+   * `configureAgentsSdk`. NEVER the SDK's process-global default client —
+   * two concurrent streams (dock + page, two tabs, two users) would swap
+   * the global mid-run and authenticate user A's later model calls as
+   * user B (a recurring source of spurious 403 Invalid Token). */
+  runner?: Runner;
 };
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -789,10 +795,12 @@ export async function configureAgentsSdk(ctx: AgentContext): Promise<void> {
         if (resp.status === 403) {
           const firstErr = await resp.clone().text().catch(() => '');
           if (firstErr.includes('Invalid Token')) {
-            for (let attempt = 1; attempt <= 2; attempt++) {
-              await new Promise((r) => setTimeout(r, 750 * attempt));
+            for (let attempt = 1; attempt <= 3; attempt++) {
+              await new Promise((r) =>
+                setTimeout(r, 600 * attempt + Math.floor(Math.random() * 400)),
+              );
               console.warn(
-                `[openai-shim] 403 Invalid Token (attempt ${attempt}/2) — re-deriving credential and retrying ${url}`,
+                `[openai-shim] 403 Invalid Token (attempt ${attempt}/3) — re-deriving credential and retrying ${url}`,
               );
               const fresh = new Headers(headers);
               const reauth = await authHeaders(ctx.req);
@@ -843,10 +851,14 @@ export async function configureAgentsSdk(ctx: AgentContext): Promise<void> {
       return resp;
     },
   });
-  setDefaultOpenAIClient(client);
-  // Responses API (the SDK's default — we leave setOpenAIAPI alone).
-  // Keep `agentModel` on `databricks-gpt-5-4` or a newer Responses-capable
-  // GPT (needs `openai/v1/responses`). Claude/non-Responses models 400.
+  // Per-request Runner: the provider binds THIS request's client (built from
+  // this request's bearer), so concurrent streams never share a credential.
+  // Responses API via useResponses: true — keep `agentModel` on
+  // `databricks-gpt-5-4` or a newer Responses-capable GPT; Claude/non-
+  // Responses models 400.
+  ctx.runner = new Runner({
+    modelProvider: new OpenAIProvider({ openAIClient: client, useResponses: true }),
+  });
   setTracingDisabled(true); // disable OpenAI's tracing backend; we use MLflow
 }
 
@@ -1046,5 +1058,3 @@ When investigating, synthesize — don't dump raw data.
     tools: makeTools(ctx),
   });
 }
-
-export { run };
