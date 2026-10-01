@@ -629,7 +629,7 @@ function EmptyState({
       <div>
         <div className="font-semibold text-sm">Ask me anything</div>
         <div className="text-xs text-muted-foreground mt-0.5">
-          I can investigate your data and take action on returns.
+          I can analyze stock positions and perform recovery actions.
         </div>
       </div>
       {firstStep && (

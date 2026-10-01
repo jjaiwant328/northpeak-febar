@@ -3,8 +3,8 @@
  * diagram on the home page. Shows how one conversation becomes a multi-step
  * plan with a human-in-the-loop checkpoint:
  *
- *   Operator → [ ANALYSIS box: Agent Bricks · Genie · Lakebase ]
- *            → Propose action → fork{ Send email, Approve refunds }
+ *   Operator → [ ANALYSIS box: Responses API · Genie MCP · Lakebase ]
+ *            → Propose action → fork{ Simulate what-ifs, Approve recovery }
  *   ──────── governed by Unity Catalog · AI Gateway ────────
  *
  * Purely visual — no live state. Tiles use the shared <Stage> primitive at
@@ -129,8 +129,9 @@ export function AgentLoopFlow() {
       <p className="text-sm text-muted-foreground leading-relaxed mb-5">
         The agent doesn't just diagnose — it{' '}
         <span className="font-medium text-foreground">takes the action</span>.
-        Genie queries the data, you approve the plan, then the agent sends the
-        apology emails and files the refunds, updating Lakebase live. One
+        Genie answers the "why" over MCP, an ML model ranks the recovery
+        moves, a policy gate checks the plan — then only your approval writes
+        the recovery action to Lakebase, with a full audit trail. One
         conversation, end to end.
       </p>
 
@@ -153,24 +154,24 @@ export function AgentLoopFlow() {
           <div className="text-[10.5px] font-mono uppercase tracking-[0.16em] text-muted-foreground">
             Agentic analysis
           </div>
-          <MiniTile icon={<AgentBricksIcon />} label="Agent Bricks · orchestrates" />
-          <MiniTile icon={<GenieIcon />} label="Genie · text → SQL" />
+          <MiniTile icon={<AgentBricksIcon />} label="Responses API · orchestrates" />
+          <MiniTile icon={<GenieIcon />} label="Genie MCP · text → SQL" />
           <MiniTile icon={<LakebaseIcon />} label="Lakebase · queries the data" />
         </div>
 
         <Connector width={56} centered />
-        <Stage tileSize={50} iconSize={32} icon={<ProposeIcon />} name="Propose action" sub="human approves" />
+        <Stage tileSize={50} iconSize={32} icon={<ProposeIcon />} name="Propose action" sub="policy-gated" />
         <Fork />
-        {/* Right column: top branch → Send email; bottom branch → Lakebase
-            update. The Fork's two endpoints are at y=22 and y=108 within a
-            130-tall box. justify-content: space-between lines the two
-            <Stage> tiles up with those endpoints. */}
+        {/* Right column: top branch → Simulate what-ifs; bottom branch →
+            Lakebase update. The Fork's two endpoints are at y=22 and y=108
+            within a 130-tall box. justify-content: space-between lines the
+            two <Stage> tiles up with those endpoints. */}
         <div
           className="flex flex-col"
           style={{ height: 130, justifyContent: 'space-between', flexShrink: 0 }}
         >
-          <Stage tileSize={50} iconSize={32} icon={<SendIcon />} name="Send email" />
-          <Stage tileSize={50} iconSize={32} icon={<LakebaseIcon />} name="Approve refunds" sub="update Lakebase" />
+          <Stage tileSize={50} iconSize={32} icon={<SendIcon />} name="Simulate what-ifs" />
+          <Stage tileSize={50} iconSize={32} icon={<LakebaseIcon />} name="Approve recovery" sub="update Lakebase" />
         </div>
       </div>
 
@@ -179,13 +180,13 @@ export function AgentLoopFlow() {
         <MobileStep icon={<OperatorIcon />} label="Operator" sub="asks the question" />
         <li className="rounded-xl border border-border bg-background p-3 flex flex-col gap-2">
           <div className="text-[10.5px] font-mono uppercase tracking-[0.16em] text-muted-foreground">Agentic analysis</div>
-          <MiniTile icon={<AgentBricksIcon />} label="Agent Bricks · orchestrates" />
-          <MiniTile icon={<GenieIcon />} label="Genie · text → SQL" />
+          <MiniTile icon={<AgentBricksIcon />} label="Responses API · orchestrates" />
+          <MiniTile icon={<GenieIcon />} label="Genie MCP · text → SQL" />
           <MiniTile icon={<LakebaseIcon />} label="Lakebase · queries the data" />
         </li>
-        <MobileStep icon={<ProposeIcon />} label="Propose action" sub="human approves" />
-        <MobileStep icon={<SendIcon />} label="Send email" />
-        <MobileStep icon={<LakebaseIcon />} label="Approve refunds" sub="update Lakebase" />
+        <MobileStep icon={<ProposeIcon />} label="Propose action" sub="policy-gated" />
+        <MobileStep icon={<SendIcon />} label="Simulate what-ifs" />
+        <MobileStep icon={<LakebaseIcon />} label="Approve recovery" sub="update Lakebase" />
       </ol>
 
       {/* governed strip */}
