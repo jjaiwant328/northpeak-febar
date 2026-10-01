@@ -652,11 +652,19 @@ function makeTools(ctx: AgentContext): Tool[] {
         async () => {
           // Two-stage Act workflow: if a PROPOSED row exists for this
           // store×SKU (written by propose_recovery_action at draft time),
-          // approve it in place; otherwise write the approved row directly.
+          // approve it in place — applying any revision the human/policy
+          // made since the draft (e.g. policy-capped units), so the approved
+          // row reflects what was ACTUALLY approved, not the stale draft.
           const approved = await approveRecoveryAction(ctx.db, {
             storeId: store_id,
             productId: product_id,
             userEmail: ctx.userEmail,
+            revised: {
+              moveType: move_type,
+              units,
+              sourceStoreId: source_store_id,
+              predictedRecapturedUsd: predicted_recaptured_usd,
+            },
           });
           if (approved) {
             return {

@@ -1,4 +1,4 @@
-import { sql, eq } from 'drizzle-orm';
+import { sql, eq, and } from 'drizzle-orm';
 import type { AppDb } from '../index.js';
 import { opsActions } from '../schema.js';
 import type { AuditEntry, MoveOption } from '../schema.js';
@@ -947,6 +947,32 @@ export async function proposeRecoveryAction(
   args: ProposeArgs,
 ): Promise<{ actionId: string }> {
   const nowIso = new Date().toISOString();
+  // Supersede any still-open drafts for this store×SKU: a redraft (e.g.
+  // after the policy gate caps units) must not leave the old proposed row
+  // in the awaiting-approval queue — the queue would keep showing the
+  // superseded 137 next to the real 135.
+  await db
+    .update(opsActions)
+    .set({
+      status: 'overridden',
+      decidedAt: new Date(),
+      auditTrail: sql`${opsActions.auditTrail} || ${JSON.stringify([
+        {
+          at: nowIso,
+          by: args.userEmail,
+          action: 'overridden',
+          notes: 'Superseded by a newer draft',
+          tool: 'propose_recovery_action',
+        },
+      ])}::jsonb`,
+    })
+    .where(
+      and(
+        eq(opsActions.storeId, args.storeId),
+        eq(opsActions.productId, args.productId),
+        eq(opsActions.status, 'proposed'),
+      ),
+    );
   const [row] = await db
     .insert(opsActions)
     .values({
@@ -975,7 +1001,20 @@ export async function proposeRecoveryAction(
 
 export async function approveRecoveryAction(
   db: AppDb,
-  args: { storeId: string; productId: string; userEmail: string },
+  args: {
+    storeId: string;
+    productId: string;
+    userEmail: string;
+    /** The APPROVED move as confirmed by the human (and policy-capped). When
+     * any field differs from the proposed row, the row is revised on approval
+     * — otherwise a policy-capped 135 would approve the stale proposed 137. */
+    revised?: {
+      moveType?: string;
+      units?: number;
+      sourceStoreId?: string | null;
+      predictedRecapturedUsd?: number;
+    };
+  },
 ): Promise<{
   actionId: string;
   markdownHoldId: string | null;
@@ -1006,9 +1045,40 @@ export async function approveRecoveryAction(
       | undefined;
     if (!row) return null;
 
+    // Effective values = proposed row overlaid with any approved revisions.
+    const r = args.revised ?? {};
+    const moveType = r.moveType ?? row.move_type;
+    const units = r.units ?? row.units;
+    const sourceStoreId =
+      r.sourceStoreId !== undefined ? r.sourceStoreId : row.source_store_id;
+    const predictedRecapturedUsd =
+      r.predictedRecapturedUsd ?? num(row.predicted_recaptured_usd);
+
+    const revisions: string[] = [];
+    if (moveType !== row.move_type)
+      revisions.push(`move_type ${row.move_type} → ${moveType}`);
+    if (units !== row.units) revisions.push(`units ${row.units} → ${units}`);
+    if (sourceStoreId !== row.source_store_id)
+      revisions.push(`source_store_id ${row.source_store_id} → ${sourceStoreId}`);
+    if (predictedRecapturedUsd !== num(row.predicted_recaptured_usd))
+      revisions.push(
+        `predicted_recaptured_usd ${row.predicted_recaptured_usd} → ${predictedRecapturedUsd}`,
+      );
+
     const now = new Date();
     const trail: AuditEntry[] = [
       ...(Array.isArray(row.audit_trail) ? row.audit_trail : []),
+      ...(revisions.length > 0
+        ? [
+            {
+              at: now.toISOString(),
+              by: args.userEmail,
+              action: 'overridden',
+              notes: `Revised on approval (policy/human-capped): ${revisions.join('; ')}`,
+              tool: 'execute_recovery_action',
+            } as AuditEntry,
+          ]
+        : []),
       {
         at: now.toISOString(),
         by: args.userEmail,
@@ -1019,17 +1089,25 @@ export async function approveRecoveryAction(
     ];
     await tx
       .update(opsActions)
-      .set({ status: 'approved', decidedAt: now, auditTrail: trail })
+      .set({
+        status: 'approved',
+        decidedAt: now,
+        auditTrail: trail,
+        moveType: moveType as 'transfer' | 'expedite' | 'substitute' | 'markdown_hold',
+        units,
+        sourceStoreId,
+        predictedRecapturedUsd,
+      })
       .where(eq(opsActions.id, row.id));
 
     // Paired markdown-hold on the transfer's source surplus (same as the
-    // direct-write path).
+    // direct-write path) — keyed off the EFFECTIVE (possibly revised) move.
     let markdownHoldId: string | null = null;
-    if (row.move_type === 'transfer' && row.source_store_id) {
+    if (moveType === 'transfer' && sourceStoreId) {
       const [hold] = await tx
         .insert(opsActions)
         .values({
-          storeId: row.source_store_id,
+          storeId: sourceStoreId,
           productId: args.productId,
           moveType: 'markdown_hold',
           sourceStoreId: null,
@@ -1044,7 +1122,7 @@ export async function approveRecoveryAction(
               at: now.toISOString(),
               by: args.userEmail,
               action: 'markdown_hold',
-              notes: `Hold surplus at ${row.source_store_id} feeding ${args.storeId}`,
+              notes: `Hold surplus at ${sourceStoreId} feeding ${args.storeId}`,
               tool: 'execute_recovery_action',
             },
           ],
@@ -1056,10 +1134,10 @@ export async function approveRecoveryAction(
     return {
       actionId: row.id,
       markdownHoldId,
-      moveType: row.move_type,
-      units: row.units,
-      sourceStoreId: row.source_store_id,
-      predictedRecapturedUsd: num(row.predicted_recaptured_usd),
+      moveType,
+      units,
+      sourceStoreId,
+      predictedRecapturedUsd,
     };
   });
 }
