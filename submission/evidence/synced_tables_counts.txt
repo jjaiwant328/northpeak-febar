@@ -1,0 +1,8 @@
+Synced Tables row-count verification - 2026-10-01 23:35:31 UTC
+Source: UC Delta rtdemo.northpeak_v2 (via SQL warehouse bef1db4086107612)
+Dest:   Lakebase Autoscaling projects/northpeak/branches/dev, db databricks_postgres, pg schema app_v2_synced
+
+table                                     delta_count lakebase_count match
+gold_recovery_recommendations_ml                  150          150 OK
+gold_open_shortfalls                              150          150 OK
+gold_store_sku_position                        126889       126889 OK

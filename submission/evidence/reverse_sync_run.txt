@@ -1,0 +1,21 @@
+Reverse-ETL job run evidence — northpeak_reverse_sync
+======================================================
+
+Job:   [FE Bar] NorthPeak v2 — reverse-ETL ops_actions to UC
+Job ID:    978376091680947
+Run ID:    744186146676875
+Run URL:   https://fe-vm-jai-classic-ws.cloud.databricks.com/?o=687974281268075#job/978376091680947/run/744186146676875
+Target:    prod  (bundle northpeak-addons, profile fe-vm-jai-classic-ws)
+State:     TERMINATED / SUCCESS
+Started:   2026-10-01 19:32:52   Terminated: 2026-10-01 19:33:52 (UTC)
+
+Source: Lakebase project northpeak, branch dev, endpoint
+        projects/northpeak/branches/dev/endpoints/primary
+        host ep-rapid-hill-d2gj3pkb.database.us-east-1.cloud.databricks.com
+        db databricks_postgres, table app_v2.ops_actions
+        Auth: OAuth token via WorkspaceClient().postgres.generate_database_credential
+        (raw-REST fallback POST /api/2.0/postgres/credentials used on serverless,
+         whose pinned databricks-sdk lacks the postgres service)
+
+Notebook exit JSON (dbutils.notebook.exit):
+{"target_table": "rtdemo.northpeak_v2.ops_actions_outcomes", "source_table": "databricks_postgres:app_v2.ops_actions", "rows_read": 4, "rows_in_target": 4, "merge": {"num_affected_rows": 4, "num_updated_rows": 0, "num_deleted_rows": 0, "num_inserted_rows": 4}, "statuses": {"approved": 1, "overridden": 1, "proposed": 2}}

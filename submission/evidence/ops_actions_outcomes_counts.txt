@@ -1,0 +1,18 @@
+Row-count verification — Delta target vs Lakebase source
+=========================================================
+Date: 2026-10-01 (UTC)
+
+Lakebase source (psycopg2, OAuth token, db databricks_postgres):
+  SELECT count(*) FROM app_v2.ops_actions            -> 4
+  SELECT status, count(*) FROM app_v2.ops_actions GROUP BY status
+    -> proposed: 2, approved: 1, overridden: 1
+
+Delta target (SQL warehouse bf7ffcda00a8c351, /api/2.0/sql/statements):
+  SELECT count(*) FROM rtdemo.northpeak_v2.ops_actions_outcomes
+    -> 4   (statement state: SUCCEEDED)
+  SELECT status, count(*) FROM rtdemo.northpeak_v2.ops_actions_outcomes GROUP BY status
+    -> approved: 1, overridden: 1, proposed: 2
+
+MATCH: 4 == 4. Statuses identical. Target table schema mirrors
+app_v2.ops_actions (13 columns) plus synced_at TIMESTAMP.
+Write mode: Delta MERGE on id (idempotent — re-runs update, never duplicate).

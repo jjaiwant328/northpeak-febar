@@ -1,0 +1,65 @@
+[
+  {
+    "name": "synced_tables/rtdemo.app_v2_synced.gold_recovery_recommendations_ml",
+    "status": {
+      "detailed_state": "SYNCED_TABLE_ONLINE_CONTINUOUS_UPDATE",
+      "last_sync": {
+        "delta_table_sync_info": {
+          "delta_commit_time": "2026-10-01T23:31:53Z",
+          "delta_commit_version": 1
+        },
+        "sync_end_time": "2026-10-01T23:32:54.470857Z",
+        "sync_start_time": "2026-10-01T23:32:45.438417Z"
+      },
+      "message": "Synced table creation succeeded using Delta Live Tables: https://fe-vm-jai-classic-ws.cloud.databricks.com#joblist/pipelines/f1844faa-d29d-4dc9-a1a2-39c41c1f5d53/updates/e0709d52-3005-463a-abfb-8f960af6c541.",
+      "ongoing_sync_progress": {
+        "latest_version_currently_processing": 1
+      },
+      "pipeline_id": "f1844faa-d29d-4dc9-a1a2-39c41c1f5d53",
+      "project": "projects/northpeak",
+      "unity_catalog_provisioning_state": "ACTIVE"
+    },
+    "synced_table_id": "rtdemo.app_v2_synced.gold_recovery_recommendations_ml",
+    "uid": "22c5d009-3ff9-4323-b0af-2bdd75830f91"
+  },
+  {
+    "name": "synced_tables/rtdemo.app_v2_synced.gold_open_shortfalls",
+    "status": {
+      "detailed_state": "SYNCED_TABLE_ONLINE_NO_PENDING_UPDATE",
+      "last_sync": {
+        "delta_table_sync_info": {
+          "delta_commit_time": "1970-01-01T00:00:00Z",
+          "delta_commit_version": 2
+        },
+        "sync_end_time": "2026-10-01T23:33:30.402368Z",
+        "sync_start_time": "2026-10-01T23:33:20.860535Z"
+      },
+      "message": "Synced table creation succeeded using Delta Live Tables: https://fe-vm-jai-classic-ws.cloud.databricks.com#joblist/pipelines/d441ba8a-5ab6-4c33-97ee-2c75659df091/updates/97e826b0-fcb8-4137-b5dc-3f1c499054e5.",
+      "pipeline_id": "d441ba8a-5ab6-4c33-97ee-2c75659df091",
+      "project": "projects/northpeak",
+      "unity_catalog_provisioning_state": "ACTIVE"
+    },
+    "synced_table_id": "rtdemo.app_v2_synced.gold_open_shortfalls",
+    "uid": "16882252-8061-43fe-b79f-5b7164bb7612"
+  },
+  {
+    "name": "synced_tables/rtdemo.app_v2_synced.gold_store_sku_position",
+    "status": {
+      "detailed_state": "SYNCED_TABLE_ONLINE_NO_PENDING_UPDATE",
+      "last_sync": {
+        "delta_table_sync_info": {
+          "delta_commit_time": "1970-01-01T00:00:00Z",
+          "delta_commit_version": 3
+        },
+        "sync_end_time": "2026-10-01T23:34:10.917335Z",
+        "sync_start_time": "2026-10-01T23:33:57.323988Z"
+      },
+      "message": "Synced table creation succeeded using Delta Live Tables: https://fe-vm-jai-classic-ws.cloud.databricks.com#joblist/pipelines/3c5481b3-7d1c-4a00-bb42-f6e4e6f517eb/updates/a4dc63b9-d03f-4d3e-9728-ce961cdfea7d.",
+      "pipeline_id": "3c5481b3-7d1c-4a00-bb42-f6e4e6f517eb",
+      "project": "projects/northpeak",
+      "unity_catalog_provisioning_state": "ACTIVE"
+    },
+    "synced_table_id": "rtdemo.app_v2_synced.gold_store_sku_position",
+    "uid": "7c8ab9b2-3cc1-426b-81e5-cd37dac871df"
+  }
+]
