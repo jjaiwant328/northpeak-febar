@@ -1,0 +1,57 @@
+# Demo test results — add-ons verified 2026-10-01
+# Split: tests run programmatically (this file) vs manual browser checks
+# (DEMO_SCRIPT.md "Test checklist").
+
+== AUTOMATED — performed and verified ==
+
+1. Reverse ETL re-run (idempotency) .......................... PASS
+   Job 978376091680947 re-run 2026-10-01: TERMINATED SUCCESS.
+   Exit JSON: rows_read 4, rows_in_target 4,
+   merge {updated: 4, inserted: 0, deleted: 0} — MERGE on id is idempotent.
+   First run (agent-built): {inserted: 4}. Delta vs Lakebase counts match.
+
+2. Managed Synced Tables — status ............................ PASS
+   rtdemo.app_v2_synced.gold_recovery_recommendations_ml  ONLINE (CONTINUOUS CDC)
+   rtdemo.app_v2_synced.gold_open_shortfalls              ONLINE (SNAPSHOT)
+   rtdemo.app_v2_synced.gold_store_sku_position           ONLINE (SNAPSHOT)
+   Detail: synced_tables_status.json
+
+3. Managed Synced Tables — row counts ........................ PASS
+   Delta vs Lakebase: 150 / 150 / 126,889 — exact match.
+   Detail: synced_tables_counts.txt
+
+4. Governance inference log — counters live .................. PASS
+   jai_tech.northpeak.jai_guarded_payload: 15 requests total, 6 today,
+   last call 2026-10-01T20:24:33Z (was 9 / 0 before the policy-gate runs).
+   Refreshed: governance_summary.txt
+
+5. Guarded endpoint — config + warm invocation ............... PASS
+   Guardrails ON, rate limit raised 2/min → 20/min, inference logging ON,
+   usage tracking ON. Live invocation returned "Ready" (cold-start cleared).
+
+6. ML Recovery dashboard page — published .................... PASS
+   Dashboard 01f1a24fdd6d187b81c668722ee06628 pages:
+   Operations, Recovery, Global Filters, ML Recovery (4th, new).
+   Detail: dashboard_ml_page.json
+
+7. Act-layer fixes — data level .............................. PASS
+   Orphan 137-unit proposed row flipped to 'overridden' (manual cleanup);
+   approved 135 row stands. propose now supersedes prior drafts;
+   approve applies policy-capped revisions with an audit entry.
+   Code: cc1d858. Verified via direct Lakebase query.
+
+8. 403 Invalid Token — root fix + recovery ................... PASS (code)
+   Per-request Runner (no process-global client swap), 3× jittered retry,
+   actionable error message. Deployed; typecheck + build clean.
+   Code: 3ffb5e3 / 0ad83eb.
+
+== MANUAL — need a logged-in browser (owner runs) ==
+
+M1. Beat 4 on STORE-0023: propose → policy PASS → execute; queue shows ONE
+    proposed row; approved row shows capped units + overridden audit entry.
+M2. Beat 6 Genie answers match the Analytics page.
+M3. Governance strip (Platform page) shows non-zero "today" after Beat 4.
+M4. ML Recovery dashboard page renders with data.
+M5. Thumbs feedback appears as an MLflow assessment on the trace.
+M6. "Policy gate is warming up" message → re-send approve after ~60s works
+    (fail-closed gate behaving; not a loop).

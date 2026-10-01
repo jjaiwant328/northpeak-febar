@@ -1,7 +1,7 @@
 # NorthPeak Store Ops — FE Bar Demo Script
 
 App: https://northpeak-febar-687974281268075.aws.databricksapps.com
-Data: `rtdemo.northpeak_v2` (fresh Lakeflow build) · Evidence: `jai_northpeak/submission4/`
+Data: `rtdemo.northpeak_v2` (fresh Lakeflow build) · Evidence: `submission/evidence/` (in-repo)
 
 ## What's new vs v2 (capabilities this demo shows)
 
@@ -139,11 +139,54 @@ against this workspace."*
 - **Governance**: every AI call runs through Unity AI Gateway — spend caps,
   guardrails, inference logging; MLflow traces every agent turn
   (`/Shared/solution_builder/northpeak-febar-agent-traces`).
+- **Governance panel (live)**: Platform page → "Govern it once" layer → the
+  strip shows live counts from the guarded endpoint's inference log (policy
+  checks logged, today, blocked/errors, avg verdict latency, last check) plus
+  the badges. Say: *"This isn't a mock — it's a query against the AI
+  Gateway's own inference table in Unity Catalog."*
+- **ML Recovery dashboard page**: Dashboard page → "Open in Databricks" →
+  the **ML Recovery** tab (4th page): move-mix bar, predicted-recaptured
+  counter, scored-count + model-version counters, top-moves table — all from
+  `gold_recovery_recommendations_ml` (v6 @prod). Say: *"Same governed
+  numbers, BI surface — no extract, no second copy."*
+- **Synced tables + the learn loop**: gold tables replicate into Lakebase as
+  managed Synced Tables (3 online, one continuous-CDC; counts verified to
+  the row — evidence `synced_tables_counts.txt`). A scheduled reverse-sync
+  job (`northpeak_reverse_sync`, daily 06:00 UTC) merges `ops_actions` back
+  into Delta `ops_actions_outcomes` — approved decisions become the next
+  training run's labels (run evidence `reverse_sync_run.txt`). Say: *"The
+  loop closes both ways: lakehouse to Lakebase, decisions back to the
+  lakehouse."*
+
+## Test checklist (run before submission / day-of)
+
+Automated (already verified — see `submission/evidence/demo_test_results.txt`):
+reverse-sync idempotent re-run, synced-table status + counts, governance
+inference-log counters, dashboard publish state, endpoint warm invocation.
+
+Manual (need a logged-in browser):
+1. Beat 4 end-to-end on **STORE-0023**: propose → check_policy PASS →
+   execute — verify ONE proposed row in the queue (redrafts now supersede),
+   approved row shows the policy-capped units with an `overridden` audit
+   entry, no 137-style ghosts.
+2. Beat 6 Genie answer matches Analytics page numbers.
+3. Governance strip on Platform page shows non-zero "today" after Beat 4.
+4. ML Recovery dashboard page renders with data.
+5. Thumbs-up on one assistant message → assessment visible on the MLflow
+   trace.
+6. If the agent says "policy gate is warming up, reply approve again in a
+   minute" — that is the fail-closed gate working; re-send `approve` after
+   ~60s. Do NOT treat it as an error.
 
 ## Fallbacks
 
-- **Transient `403 Invalid Token`**: platform flake; the fetch shim retries
-  automatically (up to 2×). Just re-send if it surfaces.
+- **`403 Invalid Token` (persistent)**: the shim retries 3× automatically;
+  if it still surfaces, the chat error says to re-send / reload the page —
+  the session credential went stale. Root cause (cross-user client swap) is
+  fixed; this is the residual platform flake.
+- **"Policy gate is warming up"**: the guarded endpoint was cold-scaled; the
+  gate fails CLOSED by design (no execution without a PASS). Wait ~60s,
+  reply `approve` again. Not a redraft loop — the agent will not re-propose.
 - **Genie slow**: investigations can poll 30–90s — the Thinking panel narrates
   while it works; don't re-send.
 - **Endpoint cold start**: `northpeak-recovery` scales to zero; first
