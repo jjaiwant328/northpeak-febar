@@ -1,0 +1,6 @@
+# POST /serving-endpoints/northpeak-recovery/invocations (2026-09-28T14:21:19Z)
+# request: hero shortfall STORE-0214 x SKU-APP-04412 — 3 candidate moves
+{"dataframe_split": {"columns": ["move_type_indexed","distance_km","units_moved","days_to_fulfill","price_usd","margin_pct","same_region"], "data": [[0, 100.3, 121, 2, 249.0, 0.45, 1], [1, 0.0, 121, 4, 249.0, 0.45, 0], [2, 0.0, 121, 0, 249.0, 0.45, 1]]}}
+
+# response:
+{"predictions": [19530.29296875, 15590.873046875, 11091.7099609375]}

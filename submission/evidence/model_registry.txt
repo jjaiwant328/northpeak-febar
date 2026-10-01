@@ -1,0 +1,38 @@
+{
+  "name": "rtdemo.northpeak_v2.recovery_recommender",
+  "aliases": {
+    "prod": "6"
+  },
+  "versions": [
+    {
+      "version": "6",
+      "status": "READY",
+      "run_id": "5a62a7a03de14602af1f8339ad77a232"
+    },
+    {
+      "version": "5",
+      "status": "READY",
+      "run_id": "7ba21321d00747e08ba9e72596702fa1"
+    },
+    {
+      "version": "4",
+      "status": "READY",
+      "run_id": "da6f5d1fda1b47c18145bd81ce826212"
+    },
+    {
+      "version": "3",
+      "status": "READY",
+      "run_id": "25dd70dccf09494f887e35dfdfaefcad"
+    },
+    {
+      "version": "2",
+      "status": "READY",
+      "run_id": "de8d3515d09b4278ac95065ea8dbf24a"
+    },
+    {
+      "version": "1",
+      "status": "READY",
+      "run_id": "6e655b44ca134994a445309291443cc3"
+    }
+  ]
+}

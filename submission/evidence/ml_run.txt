@@ -1,0 +1,6 @@
+# ML job — northpeak_ml_v2 (train + register + batch-score)
+run_id: 244048123379424  (job 905011916873159, target prod)
+url: https://fe-vm-jai-classic-ws.cloud.databricks.com/jobs/905011916873159/runs/244048123379424
+result: TERMINATED SUCCESS
+
+{"model_version": 6, "rmse": 302.71, "shortfalls_scored": 150, "transfer_recommended": 40, "expedite_recommended": 110, "substitute_recommended": 0, "hero_move": "transfer", "hero_source": "STORE-0377", "total_recaptured_usd": 1513853.0}

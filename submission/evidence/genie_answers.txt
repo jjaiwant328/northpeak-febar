@@ -1,0 +1,64 @@
+# Genie space answers — space 01f1a24bf79019f98136bd1b5aea29c8 (rtdemo.northpeak_v2)
+
+## How much are we losing to stockouts, and what is our markdown exposure right now?
+
+    SELECT MEASURE(`lost_sales_exposure`) AS `lost_sales_exposure`, MEASURE(`markdown_exposure`) AS `markdown_exposure`
+    FROM `rtdemo`.`northpeak_v2`.`mv_store_position`
+    GROUP BY ALL
+
+Right now, lost sales exposure from stockouts is **$4.93M USD**, and markdown exposure is **$4.57M USD**. Based on this result, stockout losses are currently higher than markdown exposure.
+
+
+## Which five stores have the highest lost-sales exposure?
+
+    WITH store_exposure AS (
+      SELECT
+        store_id,
+        store_name,
+        SUM(lost_sales_exposure_usd) AS lost_sales_exposure_usd
+      FROM rtdemo.northpeak_v2.gold_store_sku_position
+      WHERE store_id IS NOT NULL
+        AND store_name IS NOT NULL
+        AND lost_sales_exposure_usd IS NOT NULL
+      GROUP BY store_id, store_name
+    ), ranked AS (
+      SELECT
+        store_id,
+        store_name,
+        lost_sales_exposure_usd,
+        RANK() OVER (ORDER BY lost_sales_exposure_usd DESC) AS rank
+      FROM store_exposure
+    )
+    SELECT
+      store_id,
+      store_name,
+      lost_sales_exposure_usd
+    FROM ranked
+    WHERE rank <= 5
+    ORDER BY lost_sales_exposure_usd DESC, store_id ASC
+
+The **five stores with the highest lost-sales exposure** are:
+- **NorthPeak Detroit #0034** — **$183,235.71**
+- **NorthPeak Chicago #0083** — **$177,334.28**
+- **NorthPeak Denver #0006** — **$175,015.72**
+- **NorthPeak Chicago #0053** — **$173,575.72**
+- **NorthPeak Buffalo #0019** — **$171,728.57**
+
+Across these five stores, lost-sales exposure ranges from **$171.7K to $183.2K**, with **Detroit #0034** highest.
+
+
+## Show total recaptured sales value by move type from completed transfers
+
+    SELECT
+      `recommended_move`,
+      SUM(`predicted_recaptured_usd`) AS `total_recaptured_sales_value`
+    FROM `rtdemo`.`northpeak_v2`.`gold_recovery_recommendations`
+    WHERE `recommended_move` IS NOT NULL
+      AND `predicted_recaptured_usd` IS NOT NULL
+      AND `recommended_move` ILIKE '%transfer%'
+    GROUP BY `recommended_move`
+    ORDER BY `total_recaptured_sales_value` DESC
+
+For move type **transfer**, the total recaptured sales value is **$253,747.67**. The result shows **1** transfer-related move type in the data, so all visible recaptured sales value in this query comes from **transfer**.
+
+

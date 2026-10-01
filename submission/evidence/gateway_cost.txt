@@ -1,0 +1,37 @@
+# Agent cost evidence — pulled 2026-09-28 from system tables (workspace 687974281268075)
+
+## 1. Model-serving DBU usage (system.billing.usage, sku ENTERPRISE_*_MODEL_SERVING)
+
+OpenAI models (databricks-gpt-5-4 — the Store Ops agent brain; workspace-wide,
+all apps on this workspace, 14d window):
+  2026-09-28   1.139 DBU
+  2026-09-26   2.592 DBU
+
+Anthropic models (other agents on the shared workspace, NOT NorthPeak):
+  2026-09-26  83.48 DBU · 2026-09-25 166.96 DBU · 2026-09-24 23.15 DBU
+
+NOTE: pay-per-token foundation models (gpt-5-4, llama-3.1-8b) are served from
+platform-shared endpoints, so billing usage cannot be attributed to a single
+app — these DBUs are the workspace total for the SKU. Dollar cost = DBU x
+your contracted DBU rate (see account console → usage).
+
+## 2. AI Gateway per-call usage (system.ai_gateway.usage)
+
+No rows yet for jai-northpeak-guarded / northpeak-febar (table ingestion lags
+hours; also the guarded endpoint has usage_tracking_config unset). Older
+rows on this workspace exist from earlier gateway tests (claude-opus-5,
+ts-demo-ms).
+
+## 3. Where to see per-endpoint cost live
+
+- Serving → jai-northpeak-guarded → Usage tab: request counts + token charts.
+- Serving → northpeak-recovery → Usage tab: same for the ML model.
+- Account console → Usage → filter workspace + sku MODEL_SERVING: DBU → $.
+- MLflow experiment /Shared/solution_builder/northpeak-febar-agent-traces:
+  every agent turn traced; token usage per LLM span (v2 app's experiment
+  northpeak-retail-v2-agent-traces has 100+ traced turns as of 2026-09-28).
+
+## 4. Recommendation
+
+Enable gateway usage tracking + inference payload tables on
+jai-northpeak-guarded so every check_policy call is attributable per-token.

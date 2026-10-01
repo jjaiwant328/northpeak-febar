@@ -1,0 +1,78 @@
+{
+  "metadata": {
+    "cleanup_duration": 0,
+    "creator_user_name": "jaiwant.jonathan@databricks.com",
+    "effective_performance_target": "PERFORMANCE_OPTIMIZED",
+    "end_time": 1790604343342,
+    "execution_duration": 212000,
+    "format": "MULTI_TASK",
+    "job_id": 905011916873159,
+    "job_run_id": 244048123379424,
+    "number_in_job": 259943107966822,
+    "original_attempt_run_id": 259943107966822,
+    "parent_run_id": 244048123379424,
+    "run_id": 259943107966822,
+    "run_name": "train_score",
+    "run_page_url": "https://fe-vm-jai-classic-ws.cloud.databricks.com/?o=687974281268075#job/905011916873159/run/259943107966822",
+    "run_type": "JOB_RUN",
+    "setup_duration": 5000,
+    "start_time": 1790604125479,
+    "state": {
+      "life_cycle_state": "TERMINATED",
+      "result_state": "SUCCESS",
+      "state_message": "",
+      "user_cancelled_or_timedout": false
+    },
+    "status": {
+      "state": "TERMINATED",
+      "termination_details": {
+        "code": "SUCCESS",
+        "message": "",
+        "type": "SUCCESS"
+      }
+    },
+    "task_key": "train_score",
+    "tasks": [
+      {
+        "attempt_number": 0,
+        "cleanup_duration": 0,
+        "effective_performance_target": "PERFORMANCE_OPTIMIZED",
+        "end_time": 1790604343342,
+        "environment_key": "sdk_default",
+        "execution_duration": 212000,
+        "notebook_task": {
+          "base_parameters": {
+            "catalog": "rtdemo",
+            "schema": "northpeak_v2"
+          },
+          "notebook_path": "/Workspace/Users/jaiwant.jonathan@databricks.com/northpeak-addons-prod/files/transformation/recovery_train_score",
+          "source": "WORKSPACE"
+        },
+        "run_id": 259943107966822,
+        "run_page_url": "https://fe-vm-jai-classic-ws.cloud.databricks.com/?o=687974281268075#job/905011916873159/run/259943107966822",
+        "setup_duration": 5000,
+        "start_time": 1790604125479,
+        "state": {
+          "life_cycle_state": "TERMINATED",
+          "result_state": "SUCCESS",
+          "state_message": "",
+          "user_cancelled_or_timedout": false
+        },
+        "status": {
+          "state": "TERMINATED",
+          "termination_details": {
+            "code": "SUCCESS",
+            "message": "",
+            "type": "SUCCESS"
+          }
+        },
+        "task_key": "train_score"
+      }
+    ],
+    "trigger": "ONE_TIME"
+  },
+  "notebook_output": {
+    "result": "{\"model_version\": 6, \"rmse\": 302.71, \"shortfalls_scored\": 150, \"transfer_recommended\": 40, \"expedite_recommended\": 110, \"substitute_recommended\": 0, \"hero_move\": \"transfer\", \"hero_source\": \"STORE-0377\", \"total_recaptured_usd\": 1513853.0}",
+    "truncated": false
+  }
+}

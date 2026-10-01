@@ -1,0 +1,63 @@
+{
+  "active_deployment": {
+    "create_time": "2026-10-01T00:21:07Z",
+    "creator": "jaiwant.jonathan@databricks.com",
+    "deployment_artifacts": {
+      "source_code_path": "/Workspace/Users/403db440-e38a-47ad-a343-ea9141b432b0/src/01f1bd2dfed4172bac0e108924d56593"
+    },
+    "deployment_id": "01f1bd2dfed4172bac0e108924d56593",
+    "mode": "SNAPSHOT",
+    "source_code_path": "/Workspace/Users/jaiwant.jonathan@databricks.com/northpeak-febar/app/files",
+    "status": {
+      "message": "App started successfully",
+      "state": "SUCCEEDED"
+    },
+    "update_time": "2026-10-01T00:22:17Z"
+  },
+  "app_status": {
+    "message": "App has status: App is running",
+    "state": "RUNNING"
+  },
+  "compute_size": "MEDIUM",
+  "compute_status": {
+    "message": "App compute is running.",
+    "state": "ACTIVE"
+  },
+  "create_time": "2026-09-28T13:52:03Z",
+  "creator": "jaiwant.jonathan@databricks.com",
+  "default_source_code_path": "/Workspace/Users/jaiwant.jonathan@databricks.com/northpeak-febar/app/files",
+  "description": "NorthPeak Store Ops v2",
+  "effective_user_api_scopes": [
+    "iam.access-control:read",
+    "iam.current-user:read"
+  ],
+  "id": "403db440-e38a-47ad-a343-ea9141b432b0",
+  "last_deployment_id": "01f1bd2dfed4172bac0e108924d56593",
+  "name": "northpeak-febar",
+  "oauth2_app_client_id": "506747e9-3967-46e8-8187-579237dc73f4",
+  "oauth2_app_integration_id": "506747e9-3967-46e8-8187-579237dc73f4",
+  "resources": [
+    {
+      "name": "sql-warehouse",
+      "sql_warehouse": {
+        "id": "bf7ffcda00a8c351",
+        "permission": "CAN_USE"
+      }
+    },
+    {
+      "name": "postgres",
+      "postgres": {
+        "branch": "projects/northpeak/branches/dev",
+        "database": "projects/northpeak/branches/dev/databases/databricks-postgres",
+        "permission": "CAN_CONNECT_AND_CREATE"
+      }
+    }
+  ],
+  "service_principal_client_id": "403db440-e38a-47ad-a343-ea9141b432b0",
+  "service_principal_id": 72211012580989,
+  "service_principal_name": "app-1087lf northpeak-febar",
+  "thumbnail_url": "",
+  "update_time": "2026-10-01T00:21:07Z",
+  "updater": "jaiwant.jonathan@databricks.com",
+  "url": "https://northpeak-febar-687974281268075.aws.databricksapps.com"
+}

@@ -1,0 +1,11 @@
+{
+  "name": "[FE Bar] NorthPeak v2 — raw to silver to gold",
+  "state": "IDLE",
+  "latest_updates": [
+    {
+      "update_id": "3023390f-b641-4b73-b654-e7e15c9bdc97",
+      "state": "COMPLETED",
+      "creation_time": "2026-09-27T21:23:36.554Z"
+    }
+  ]
+}

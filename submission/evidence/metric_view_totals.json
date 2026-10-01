@@ -1,0 +1,68 @@
+{
+  "manifest": {
+    "chunks": [
+      {
+        "chunk_index": 0,
+        "row_count": 1,
+        "row_offset": 0
+      }
+    ],
+    "format": "JSON_ARRAY",
+    "schema": {
+      "column_count": 5,
+      "columns": [
+        {
+          "name": "lost_sales_usd",
+          "position": 0,
+          "type_name": "DOUBLE",
+          "type_text": "DOUBLE"
+        },
+        {
+          "name": "markdown_usd",
+          "position": 1,
+          "type_name": "DOUBLE",
+          "type_text": "DOUBLE"
+        },
+        {
+          "name": "positions",
+          "position": 2,
+          "type_name": "LONG",
+          "type_text": "BIGINT"
+        },
+        {
+          "name": "stockouts",
+          "position": 3,
+          "type_name": "LONG",
+          "type_text": "BIGINT"
+        },
+        {
+          "name": "overstocks",
+          "position": 4,
+          "type_name": "LONG",
+          "type_text": "BIGINT"
+        }
+      ]
+    },
+    "total_chunk_count": 1,
+    "total_row_count": 1,
+    "truncated": false
+  },
+  "result": {
+    "chunk_index": 0,
+    "data_array": [
+      [
+        "4925558.57016",
+        "4570961.099999999",
+        "126889",
+        "150",
+        "167"
+      ]
+    ],
+    "row_count": 1,
+    "row_offset": 0
+  },
+  "statement_id": "01f1bd34-a3be-1217-b83c-181a95ea1303",
+  "status": {
+    "state": "SUCCEEDED"
+  }
+}

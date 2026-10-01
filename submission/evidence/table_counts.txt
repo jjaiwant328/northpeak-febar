@@ -1,0 +1,9 @@
+# rtdemo.northpeak_v2 table counts (2026-09-28T13:55:59Z)
+silver_sales: 3309000
+silver_inventory: 254900
+silver_transfers: 40000
+gold_store_sku_position: 126889
+gold_open_shortfalls: 150
+gold_transfer_outcomes: 40000
+gold_recovery_recommendations: 150
+gold_recovery_recommendations_ml: 150

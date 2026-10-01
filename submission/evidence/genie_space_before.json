@@ -1,0 +1,3 @@
+{
+  "note": "Before-state captured verbally during W4: space 01f1a24bf79019f98136bd1b5aea29c8 ('NorthPeak Store Operations') existed but was unconfigured — 0 data-source tables, 0 text instructions, 0 sample questions. W4 PATCH added 4 rtdemo.northpeak_v2 tables (gold_store_sku_position, gold_open_shortfalls, gold_recovery_recommendations, mv_store_position), 1 text_instructions block (21 lines: business definitions, metric-view usage, move_type vocabulary), 7 sample questions. See genie_space_after.json for the post-PATCH serialized space."
+}
