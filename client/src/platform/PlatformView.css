@@ -1272,3 +1272,47 @@
     opacity: 1;
   }
 }
+
+/* ── Governance strip (W9) — live counts from the AI Gateway inference log ── */
+.dx-gov-body {
+  padding: 14px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.dx-gov-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+.dx-gov-stat {
+  display: flex;
+  flex-direction: column;
+  min-width: 72px;
+}
+.dx-gov-num {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+}
+.dx-gov-lbl {
+  font-size: 11px;
+  color: var(--muted-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.dx-gov-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.dx-gov-badge {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 10px;
+  background: var(--muted);
+}

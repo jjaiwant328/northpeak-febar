@@ -64,12 +64,20 @@ interface ChartsDeps {
   queriesDir: string;
 }
 
-// Query key → filename. Only these keys are runnable (closed allowlist —
-// no arbitrary file reads from a user-supplied key).
-const QUERY_FILES: Record<string, string> = {
-  cold_weather_velocity_trend: 'cold_weather_velocity_trend.sql',
-  worst_shortfalls: 'worst_shortfalls.sql',
-  position_mix_by_zone: 'position_mix_by_zone.sql',
+// Query key → filename (+ optional catalog/schema override for queries that
+// read tables OUTSIDE the demo schema). Only these keys are runnable (closed
+// allowlist — no arbitrary file reads from a user-supplied key).
+const QUERY_FILES: Record<string, { file: string; catalog?: string; schema?: string }> = {
+  cold_weather_velocity_trend: { file: 'cold_weather_velocity_trend.sql' },
+  worst_shortfalls: { file: 'worst_shortfalls.sql' },
+  position_mix_by_zone: { file: 'position_mix_by_zone.sql' },
+  // The guarded endpoint's inference log lives next to the endpoint, not in
+  // the demo schema.
+  governance_summary: {
+    file: 'governance_summary.sql',
+    catalog: 'jai_tech',
+    schema: 'northpeak',
+  },
 };
 
 export function registerChartRoutes(app: Application, deps: ChartsDeps): void {
@@ -77,15 +85,15 @@ export function registerChartRoutes(app: Application, deps: ChartsDeps): void {
 
   app.get('/api/charts/:key', async (req: Request, res: Response) => {
     const key = String(req.params.key);
-    const file = QUERY_FILES[key];
-    if (!file) {
+    const entry = QUERY_FILES[key];
+    if (!entry) {
       res.status(404).json({ error: `Unknown chart query: ${key}` });
       return;
     }
 
     let sql: string;
     try {
-      sql = readFileSync(resolve(queriesDir, file), 'utf8');
+      sql = readFileSync(resolve(queriesDir, entry.file), 'utf8');
     } catch (e) {
       res.status(500).json({ error: `Could not read query ${key}: ${(e as Error).message}` });
       return;
@@ -96,8 +104,8 @@ export function registerChartRoutes(app: Application, deps: ChartsDeps): void {
       // table references in the .sql resolve against the demo's tables. Values
       // must be wrapped as SQL type markers (sql.string), not raw strings.
       const result = await query(sql, {
-        catalog: sqlParam.string(catalog),
-        schema: sqlParam.string(schema),
+        catalog: sqlParam.string(entry.catalog ?? catalog),
+        schema: sqlParam.string(entry.schema ?? schema),
       });
       // The connector already turned rows into objects; we just coerce
       // numeric-looking cells to numbers so the charts get real numbers

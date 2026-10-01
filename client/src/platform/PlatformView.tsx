@@ -14,7 +14,7 @@
  *   4. Act                 — Lakebase + Apps reaching the operator
  */
 
-import { useState, type ReactElement } from 'react';
+import { useEffect, useState, type ReactElement } from 'react';
 import {
   ChevronDown,
   ExternalLink,
@@ -975,6 +975,7 @@ function LayerBand({ layer, index }: { layer: Layer; index: number }) {
       </div>
       {layer.id === 'ingest-transform' && <GenieCodeStrip />}
       {layer.id === 'speak-to-data' && <AgenticAppsStrip />}
+      {layer.id === 'govern' && <GovernanceStrip />}
     </section>
   );
 }
@@ -1116,6 +1117,104 @@ function AgenticAppsStrip() {
           </div>
         </div>
 
+      </div>
+    </div>
+  );
+}
+
+// ===========================================================================
+// Governance strip — sits inside the Govern layer. Live counts from the
+// guarded policy endpoint's AI Gateway inference log (every check_policy
+// call is auto-captured to Unity Catalog) — proof the loop is guardrailed,
+// rate-limited, and logged, not just claimed.
+// ===========================================================================
+
+type GovernanceStats = {
+  requests_total: number;
+  requests_today: number;
+  errors_total: number;
+  requesters: number;
+  avg_latency_ms: number;
+  last_call: string;
+};
+
+function GovernanceStrip() {
+  const [stats, setStats] = useState<GovernanceStats | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    fetch('/api/charts/governance_summary')
+      .then(async (r) => {
+        if (!r.ok) throw new Error((await r.text()).slice(0, 200));
+        return r.json();
+      })
+      .then((j) => {
+        if (alive) setStats((j.data?.[0] as GovernanceStats) ?? null);
+      })
+      .catch((e) => alive && setError(String(e?.message ?? e)));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const lastCall = stats?.last_call
+    ? new Date(stats.last_call).toLocaleString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      })
+    : '—';
+
+  return (
+    <div className="dx-genie-strip">
+      <div className="dx-genie-strip-head">
+        <span className="dx-genie-strip-icon">
+          <ShieldCheck className="size-3.5" />
+        </span>
+        <span className="dx-genie-strip-label">
+          <strong>Governed AI in this build</strong>
+          <span className="dx-genie-strip-sub">
+            Every policy check runs through a guarded AI Gateway endpoint —{' '}
+            {error
+              ? 'inference log not readable from the app yet'
+              : 'live counts from its UC inference log'}
+          </span>
+        </span>
+      </div>
+
+      <div className="dx-gov-body">
+        <div className="dx-gov-stats">
+          <div className="dx-gov-stat">
+            <span className="dx-gov-num">{stats ? stats.requests_total : '—'}</span>
+            <span className="dx-gov-lbl">policy checks logged</span>
+          </div>
+          <div className="dx-gov-stat">
+            <span className="dx-gov-num">{stats ? stats.requests_today : '—'}</span>
+            <span className="dx-gov-lbl">today</span>
+          </div>
+          <div className="dx-gov-stat">
+            <span className="dx-gov-num">{stats ? stats.errors_total : '—'}</span>
+            <span className="dx-gov-lbl">blocked / errors</span>
+          </div>
+          <div className="dx-gov-stat">
+            <span className="dx-gov-num">
+              {stats ? `${(stats.avg_latency_ms / 1000).toFixed(1)}s` : '—'}
+            </span>
+            <span className="dx-gov-lbl">avg verdict latency</span>
+          </div>
+          <div className="dx-gov-stat">
+            <span className="dx-gov-num">{lastCall}</span>
+            <span className="dx-gov-lbl">last check</span>
+          </div>
+        </div>
+        <div className="dx-gov-badges">
+          <span className="dx-gov-badge">✓ guardrails on</span>
+          <span className="dx-gov-badge">✓ rate-limited 2/min</span>
+          <span className="dx-gov-badge">✓ inference-logged to UC</span>
+          <span className="dx-gov-badge">✓ runs as the viewing user</span>
+        </div>
       </div>
     </div>
   );

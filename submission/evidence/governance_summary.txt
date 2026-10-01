@@ -1,0 +1,9 @@
+# Governance summary — jai_tech.northpeak.jai_guarded_payload (AI Gateway inference log)
+# queried 2026-10-01T19:26:49Z
+
+requests_total: 9
+requests_today: 0
+errors_total: 1
+requesters: 1
+avg_latency_ms: 16806.0
+last_call: 2026-09-29T02:55:30.120Z
