@@ -498,7 +498,7 @@ function makeTools(ctx: AgentContext): Tool[] {
   const checkPolicy = tool({
     name: 'check_policy',
     description:
-      'REQUIRED before execute_recovery_action: validate the drafted recovery move against the operating policy via the governed AI Gateway. Returns {pass, violations, rationale}. If pass=false, redraft the move and check again — do NOT execute.',
+      'REQUIRED before execute_recovery_action: validate the drafted recovery move against the operating policy via the governed AI Gateway. Returns {pass, violations, rationale, gate_error}. If pass=false WITHOUT gate_error, redraft the move and check again — do NOT execute. If gate_error=true, the GATE ITSELF is unavailable (cold start or outage) — the draft is NOT at fault: do not redraft, do not retry in this turn; tell the user the policy gate is warming up and to reply "approve" again in a minute.',
     parameters: z.object({
       store_id: z.string().describe('Store the move lands on (destination for transfer/expedite/substitute; the overstock store for markdown_hold).'),
       product_id: z.string().describe('SKU being recovered.'),
@@ -574,6 +574,7 @@ function makeTools(ctx: AgentContext): Tool[] {
               const t = await resp.text().catch(() => '');
               return {
                 pass: false,
+                gate_error: true,
                 violations: [`policy endpoint error ${resp.status}: ${t.slice(0, 200)}`],
                 rationale: 'Policy gate unavailable — do not execute without a PASS.',
               };
@@ -590,6 +591,7 @@ function makeTools(ctx: AgentContext): Tool[] {
             if (!verdict) {
               return {
                 pass: false,
+                gate_error: true,
                 violations: ['policy validator returned an unparseable verdict'],
                 rationale: text.slice(0, 300),
               };
@@ -598,6 +600,7 @@ function makeTools(ctx: AgentContext): Tool[] {
           } catch (e) {
             return {
               pass: false,
+              gate_error: true,
               violations: [`policy gate call failed: ${(e as Error).message}`],
               rationale: 'Policy gate unavailable — do not execute without a PASS.',
             };
@@ -990,9 +993,12 @@ surplus asks → MODE C.)
   "go", "do it", "ship it", "looks good"). A revision request means → redraft
   and go back to Phase 2 (STOP again).
   On approval, in this order:
-    1. Call check_policy with the drafted move (include avg_daily_velocity and
+    1. Call check_policy ONCE with the drafted move (include avg_daily_velocity and
        source_on_hand when you know them). PASS is REQUIRED — on violations,
-       explain and redraft (back to Phase 2).
+       explain and redraft (back to Phase 2). On gate_error=true, STOP: the
+       gate is unavailable, not the draft — tell the user the policy gate is
+       warming up and to reply "approve" again in a minute. Do not redraft
+       and do not call check_policy again this turn.
     2. Only after PASS: call execute_recovery_action ONCE with the approved
        move's filter + the drafted request + the predicted recaptured $. Then
        summarize what was recorded (see SUMMARY FORMAT). Numbers come from the
@@ -1021,8 +1027,11 @@ confirmation step in the middle, but with the overstock semantics:
 
 --- Phase 3 · Execute (on approval) ---
   On approval, in this order:
-    1. Call check_policy with the drafted move — PASS is REQUIRED (on
-       violations, explain and redraft, back to Phase 2).
+    1. Call check_policy ONCE with the drafted move — PASS is REQUIRED (on
+       violations, explain and redraft, back to Phase 2). On gate_error=true,
+       STOP: the gate is unavailable, not the draft — tell the user the
+       policy gate is warming up and to reply "approve" again in a minute.
+       Do not redraft and do not call check_policy again this turn.
     2. After PASS: propose_recovery_action should already have recorded the
        draft at the end of Phase 2 (call it now if you haven't); then
        execute_recovery_action ONCE.
