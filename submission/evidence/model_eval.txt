@@ -1,0 +1,16 @@
+# Model evaluation — recovery_recommender @prod vs heuristic baseline
+# Job: [FE Bar] NorthPeak v2 — evaluate recovery model vs heuristic (642614673300303)
+# Run: 593561740929535, 2026-10-02, TERMINATED SUCCESS
+# Notebook: northpeak-addons/transformation/recovery_eval.py (read-only — no retrain,
+# no registry/table writes). Held-out 20% of gold_transfer_outcomes (n=8000),
+# identical split to training (random_state=42). Label: recaptured_sales_usd.
+
+{"model": "rtdemo.northpeak_v2.recovery_recommender@prod", "n_held_out": 8000,
+ "model_rmse": 302.71, "model_mae": 174.9, "model_mean_signed_error": 2.72,
+ "heuristic_rmse": 1258.09, "heuristic_mae": 662.8, "heuristic_mean_signed_error": -638.12,
+ "rmse_improvement_pct": 75.9}
+
+Reading: the ML model beats the closed-form heuristic by 75.9% on RMSE
+(302.71 vs 1258.09) and 73.6% on MAE (174.9 vs 662.8) on 8,000 held-out
+historical transfer outcomes. The heuristic systematically UNDER-predicts
+(mean signed error -638.12); the model is near-unbiased (+2.72).

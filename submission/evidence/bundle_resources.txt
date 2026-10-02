@@ -5,6 +5,9 @@ Workspace:
   Path: /Workspace/Users/jaiwant.jonathan@databricks.com/northpeak-addons-prod
 Resources:
   Jobs:
+    northpeak_eval:
+      Name: [FE Bar] NorthPeak v2 — evaluate recovery model vs heuristic
+      URL:  https://fe-vm-jai-classic-ws.cloud.databricks.com/jobs/642614673300303?w=687974281268075
     northpeak_gen_v2:
       Name: [FE Bar] NorthPeak v2 — generate raw data
       URL:  https://fe-vm-jai-classic-ws.cloud.databricks.com/jobs/981936535763843?w=687974281268075

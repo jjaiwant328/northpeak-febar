@@ -101,6 +101,21 @@ resources:
               catalog: ${var.catalog}
               schema: ${resources.schemas.demo_schema.name}
           environment_key: sdk_default
+        # Retrain after the sync lands: the daily schedule first merges the
+        # app's approved/overridden actions back into Delta, then re-trains
+        # and re-scores with a fresh model version (@prod rolls forward).
+        # NOTE: today this is an ordering convenience — ops_actions_outcomes
+        # carries predicted, not realized, outcomes; feeding it into training
+        # as labels is future work.
+        - task_key: train_score
+          depends_on:
+            - task_key: reverse_sync
+          notebook_task:
+            notebook_path: ./transformation/recovery_train_score.py
+            base_parameters:
+              catalog: ${var.catalog}
+              schema: ${resources.schemas.demo_schema.name}
+          environment_key: sdk_default
       environments:
         - environment_key: sdk_default
           spec:
@@ -108,6 +123,31 @@ resources:
             dependencies:
               - psycopg2-binary
               - databricks-sdk
+              - xgboost
+              - optuna
+              - scikit-learn
+              - mlflow
+
+    northpeak_eval:
+      name: "[FE Bar] NorthPeak v2 — evaluate recovery model vs heuristic"
+      description: "Read-only eval: scores the held-out 20% of gold_transfer_outcomes with recovery_recommender @prod and with the heuristic baseline, and exits a JSON comparison (RMSE/MAE both). No retrain, no registry or table writes."
+      tasks:
+        - task_key: evaluate
+          notebook_task:
+            notebook_path: ./transformation/recovery_eval.py
+            base_parameters:
+              catalog: ${var.catalog}
+              schema: ${resources.schemas.demo_schema.name}
+          environment_key: sdk_default
+      environments:
+        - environment_key: sdk_default
+          spec:
+            client: "4"
+            dependencies:
+              - scikit-learn
+              - mlflow
+              # the pyfunc wrapper unpickles the XGBoost booster at load time
+              - xgboost
 
   pipelines:
     northpeak_ops_v2:
