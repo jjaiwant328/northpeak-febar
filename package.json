@@ -1,5 +1,5 @@
 {
-  "name": "northpeak-retail-v2",
+  "name": "northpeak-store-ops",
   "version": "2.0.0",
   "private": true,
   "main": "dist/server.js",
@@ -23,7 +23,7 @@
     "sync": "appkit plugin sync --write --silent",
     "typegen": "appkit generate-types"
   },
-  "description": "NorthPeak Store Ops v2",
+  "description": "NorthPeak Store Ops \u2014 stockout and markdown rescue",
   "license": "Unlicensed",
   "dependencies": {
     "@databricks/appkit": "0.57.0",

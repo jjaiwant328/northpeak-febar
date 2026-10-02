@@ -60,7 +60,7 @@
 
   // Surfaces in dock header + page titles.
   "branding": {
-    "appName": "NorthPeak Store Ops v2"
+    "appName": "NorthPeak Store Ops"
   },
 
   // Dock's "Suggested next" chip walks this list. Step N unlocks once the

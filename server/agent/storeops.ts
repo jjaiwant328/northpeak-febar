@@ -91,7 +91,7 @@ async function embedQuery(ctx: AgentContext, text: string): Promise<number[] | n
 // The data-backend helpers. Both are config-driven and share the same
 // DataCallResult shape + ToolProgressEvent stream, so the `ask_data` tool
 // below can delegate to EITHER without the UI caring which powers it. This
-// preserves the template's MAS-OR-Genie flexibility exactly.
+// preserves the MAS-OR-Genie flexibility exactly.
 import { callMasEndpoint } from './tools/mas.js';
 import { callGenieSpace } from './tools/genie.js';
 export type { ToolProgressEvent } from './tools/types.js';
@@ -601,7 +601,7 @@ function makeTools(ctx: AgentContext): Tool[] {
       ),
   });
 
-  // (+ TEMPLATE_MAP pattern #5, filter-driven bulk writes).
+  // (filter-driven bulk writes).
   const executeRecoveryAction = tool({
     name: 'execute_recovery_action',
     description:

@@ -89,8 +89,8 @@ type AppConfig = {
    * otherwise. See server/agent/tools/{mas,genie}.ts. */
   masEndpointName?: string;
   /** Genie space ID (32-char hex). Set this OR `masEndpointName`.
-   * The two are mutually-exclusive in the default template — if your
-   * demo really needs both, edit makeTools() to register both factories. */
+   * The two are mutually-exclusive — if both are ever needed,
+   * edit makeTools() to register both factories. */
   genieSpaceId?: string;
   /** Pinned MLflow experiment id, used by AppHeader's "Experiment" link.
    * Optional — most demos rely on `agentMlflowExperimentPath` below to
@@ -103,7 +103,7 @@ type AppConfig = {
    *
    * IMPORTANT: leave this set in `config/app.json`. If empty, traces have
    * nowhere to land and the chat shows "Trace pending…" forever — which
-   * is also why the previous version of this template had a real value
+   * is also why earlier versions of this app had a real value
    * baked in. The path should be unique per app (we use the app name)
    * so multiple demos in the same workspace don't share an experiment.
    *
@@ -425,7 +425,7 @@ let mlflowInitializedEarly = false;
   const appName = (process.env.DATABRICKS_APP_NAME ?? '').trim();
   const experimentPath =
     appConfig.agentMlflowExperimentPath ||
-    (appName ? `/Shared/solution_builder/${appName}-agent-traces` : '');
+    (appName ? `/Shared/${appName}-agent-traces` : '');
   if (host && experimentPath) {
     try {
       const token = await resolveTracingToken(host);
@@ -482,7 +482,7 @@ await createApp({
     if (STARTUP_SAFE_PATHS.has(req.path)) return next();
     if (STARTUP_SAFE_PREFIXES.some((p) => req.path.startsWith(p))) return next();
     if (migrationsFailure) {
-      // Real bug — the LLM running the template needs to see this in the
+      // Real bug — surface it in the boot log so it gets fixed.
       // browser, not just the terminal. Don't try to recover here.
       res.status(503).json({
         error: `Database initialization failed: ${migrationsFailure.message}`,
@@ -598,21 +598,21 @@ const mlflowIdPromise = (async () => {
   // Resolve the experiment path with a self-derived fallback so tracing works
   // out of the box on EVERY deploy path — no env plumbing required. Precedence:
   //   1. explicit `agentMlflowExperimentPath` (from AGENT_MLFLOW_EXPERIMENT_PATH)
-  //   2. derived `/Shared/solution_builder/<app-name>-agent-traces`, where the
+  //   2. derived `/Shared/<app-name>-agent-traces`, where the
   //      app name comes from DATABRICKS_APP_NAME (auto-injected in the Apps
   //      container — the same var @databricks/appkit reads).
   // Only when BOTH are empty (e.g. local dev with neither set) do we degrade.
   const appName = (process.env.DATABRICKS_APP_NAME ?? '').trim();
   const experimentPath =
     appConfig.agentMlflowExperimentPath ||
-    (appName ? `/Shared/solution_builder/${appName}-agent-traces` : '');
+    (appName ? `/Shared/${appName}-agent-traces` : '');
   if (!experimentPath) {
     // Loud warning so this never silently breaks the "View trace" link in
     // the chat (the symptom is "Trace pending…" forever — see FeedbackRow).
     // Normally self-derived from DATABRICKS_APP_NAME; set
     // AGENT_MLFLOW_EXPERIMENT_PATH explicitly to override.
     console.warn(
-      '[boot] no MLflow experiment path — agentMlflowExperimentPath is empty AND DATABRICKS_APP_NAME is unset, so nothing could be derived. Agent traces will NOT be recorded and the chat "View trace" link will show "Trace pending…". Set AGENT_MLFLOW_EXPERIMENT_PATH (e.g. /Shared/solution_builder/<app-name>-agent-traces).',
+      '[boot] no MLflow experiment path — agentMlflowExperimentPath is empty AND DATABRICKS_APP_NAME is unset, so nothing could be derived. Agent traces will NOT be recorded and the chat "View trace" link will show "Trace pending…". Set AGENT_MLFLOW_EXPERIMENT_PATH (e.g. /Shared/<app-name>-agent-traces).',
     );
     return null;
   }
@@ -646,7 +646,7 @@ migrationsReady = (async () => {
     }
     migrationsDone = true;
   } catch (e) {
-    // Real bug — the LLM customizing the template needs to act on this.
+    // Real bug — surface it loudly so it gets fixed.
     // The gate middleware reads `migrationsFailure` and returns it to the
     // browser so the user sees the failure inline, not just in the terminal.
     migrationsFailure = e instanceof Error ? e : new Error(String(e));

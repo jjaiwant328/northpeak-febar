@@ -126,14 +126,14 @@ env_lines = [
 ]
 
 # The agent-traces experiment path. If the harvest didn't produce it, the app
-# still self-derives /Shared/solution_builder/<DATABRICKS_APP_NAME>-agent-traces
+# still self-derives /Shared/<DATABRICKS_APP_NAME>-agent-traces
 # at boot (server.ts) — so this is a NOTE, not a failure. We still emit it when
 # present so the env value matches resources.json (and the DAB derivation).
 if not resources.get("agent_mlflow_experiment_path"):
     print(
         "[finalize] NOTE: agent_mlflow_experiment_path missing from harvested "
         "resources — the app will self-derive it from DATABRICKS_APP_NAME at boot "
-        "(/Shared/solution_builder/<app_name>-agent-traces). Set it in "
+        "(/Shared/<app_name>-agent-traces). Set it in "
         "resources.json to pin an explicit path.",
         file=sys.stderr,
     )

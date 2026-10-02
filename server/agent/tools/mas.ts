@@ -47,7 +47,7 @@ export async function callMasEndpoint(
     } catch (e) {
       // A bug in onToolProgress shouldn't break the agent, but it IS a bug
       // worth seeing when it happens — log it as a real error so the LLM
-      // customizing the template notices and fixes it.
+      // maintaining the app notices and fixes it.
       console.error('[onToolProgress] callback threw — fix the handler', e);
     }
   }

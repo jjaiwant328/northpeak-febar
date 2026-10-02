@@ -12,7 +12,7 @@ import {
 } from 'drizzle-orm/pg-core';
 
 /**
- * Lakebase schema, under `app_v2.*` — NorthPeak Store Ops v2.
+ * Lakebase schema, under `app_v2.*` — NorthPeak Store Ops.
  *
  * Three groups (synced READ-ONLY mirrors + ONE writable operational table):
  *   1. Chat state      (conversations, messages, feedback) — REUSE AS-IS.

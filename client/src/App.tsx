@@ -48,7 +48,7 @@ function Layout() {
   );
 }
 
-// When this app runs inside the Demo Prompt Generator's preview proxy, a
+// When this app runs inside a preview proxy, a
 // client-side shim publishes `window.__PREVIEW_BASENAME__` (e.g.
 // "/preview/<project-id>"). Passing it as `basename` tells react-router to
 // strip that prefix before matching routes. Outside the proxy it's undefined

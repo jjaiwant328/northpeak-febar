@@ -138,7 +138,7 @@ against this workspace."*
   matching the batch score to the cent.
 - **Governance**: every AI call runs through Unity AI Gateway — spend caps,
   guardrails, inference logging; MLflow traces every agent turn
-  (`/Shared/solution_builder/northpeak-febar-agent-traces`).
+  (`/Shared/northpeak-febar-agent-traces`).
 - **Governance panel (live)**: Platform page → "Govern it once" layer → the
   strip shows live counts from the guarded endpoint's inference log (policy
   checks logged, today, blocked/errors, avg verdict latency, last check) plus

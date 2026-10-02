@@ -15,7 +15,7 @@
 # MAGIC is `STORE-0214` (Denver) × `SKU-APP-04412` (Summit Down Parka); the surplus that
 # MAGIC covers it is `STORE-0377` (Colorado Springs, ~100 mi away).
 # MAGIC
-# MAGIC **This is a worked example of the technique, not a fill-in-the-blanks template** —
+# MAGIC **Authored for this scenario** —
 # MAGIC a different demo rewrites the domain, schema, and anomaly. What carries over is the
 # MAGIC *shape*: Spark-native idioms + one concentrated, explainable anomaly against a
 # MAGIC realistic baseline. This script writes the RAW parquet datasets only; silver + gold
