@@ -14,8 +14,7 @@ import {
 /**
  * Lakebase schema, under `app_v2.*` — NorthPeak Store Ops v2.
  *
- * Three groups (this is the Build-1 answer key: synced READ-ONLY mirrors +
- * ONE writable operational table):
+ * Three groups (synced READ-ONLY mirrors + ONE writable operational table):
  *   1. Chat state      (conversations, messages, feedback) — REUSE AS-IS.
  *                      Every use case has chat. The `thinking` + `error`
  *                      jsonb/text columns on `messages` make conversations
@@ -125,8 +124,8 @@ export const feedback = appSchema.table(
 // Synced read-only mirror (from Delta — NorthPeak Gold tables)
 //
 // These mirror `gold_store_sku_position`, `gold_open_shortfalls`, and
-// `gold_recovery_recommendations`. In Build-1 terms they're UC synced
-// tables — read-only from the app. `db/sync.ts` pulls them at boot; the
+// `gold_recovery_recommendations` — UC synced
+// tables, read-only from the app. `db/sync.ts` pulls them at boot; the
 // app SELECTs from them and never writes them.
 // ============================================================================
 
@@ -198,14 +197,14 @@ export const openShortfalls = appSchema.table(
 
 // Read-only mirror of the ML model's batch predictions table
 // (`{catalog}.{schema}.gold_recovery_recommendations`, written by the ML
-// notebook in spec `03-ml-recovery.md`). The app never calls the model
+// notebook). The app never calls the model
 // directly — the agent's `rank_recovery_moves` tool reads from this table.
 // `moveRanking` (JSONB) holds all three options with predicted recaptured $
 // + net $ + cost, powering the ranked-options list + the arithmetic what-if.
 //
-// NOTE: the trainee BUILDS this table (it's the ML step of the workshop),
+// NOTE: this table is produced by the ML train+score notebook,
 // so sync.ts tolerates it not existing yet — the mirror is simply empty
-// until they produce it.
+// until the first scoring run lands it.
 export const recoveryRecommendations = appSchema.table(
   'recovery_recommendations',
   {
@@ -228,7 +227,7 @@ export const recoveryRecommendations = appSchema.table(
 );
 
 // ============================================================================
-// Writable operational table (the app writes here — Build-1 writable table)
+// Writable operational table (the only table the app writes)
 //
 // `ops_actions` is the ONLY table the app writes. An approved transfer
 // inserts a row here (move + drafted request + who approved); a markdown-

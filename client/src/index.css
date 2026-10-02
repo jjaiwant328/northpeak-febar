@@ -19,7 +19,7 @@
   /* ========================================================================
    * BRAND PALETTE — single source of truth.
    *
-   * These five stops mirror the LuxeBeauty AI/BI dashboard's
+   * These five stops mirror the embedded AI/BI dashboard's
    * visualizationColors theme so the app + dashboard read as one product.
    * Every other token below derives from these — change a stop here and
    * the whole app shifts. Edit cautiously.
@@ -142,7 +142,7 @@
   /* Charts — full dashboard 5-stop palette in canonical order.
      Recharts / appkit charts read --chart-1..5 by index, so this
      mapping makes any "first series" land on navy, just like the
-     dashboard's "Refunds (90d)" counter. */
+     dashboard's headline counter. */
   --chart-1: var(--brand-1);
   --chart-2: var(--brand-2);
   --chart-3: var(--brand-3);
@@ -180,7 +180,7 @@
   --trafficlight-green:  #22C55E;
 
   /* Databricks brand red — used by the sidebar "Data + AI" pitch glow.
-     External brand asset, not part of LuxeBeauty's palette. */
+     External brand asset, not part of the app palette. */
   --databricks-red: #EE3D2C;
 }
 

@@ -6,14 +6,14 @@
 #   ./scripts/lakebase_setup_db.sh --db-name <name> [--project-id <id>] [--branch-id <id>]
 #
 # Examples:
-#   ./scripts/lakebase_setup_db.sh --db-name dbgen_luxebeauty
+#   ./scripts/lakebase_setup_db.sh --db-name databricks_postgres
 #       → uses shared `dbdemos-asset-generator` project; if it's full, falls
 #         back to `-2`, `-3`, ... up to `-9`. Branch defaults to `production`.
 #
-#   ./scripts/lakebase_setup_db.sh --db-name dbgen_luxebeauty --project-id my-private-project
+#   ./scripts/lakebase_setup_db.sh --db-name databricks_postgres --project-id my-private-project
 #       → dedicated project; fails loudly if full (no auto-fallback).
 #
-#   ./scripts/lakebase_setup_db.sh --db-name dbgen_luxebeauty --project-id my-private-project --branch-id staging
+#   ./scripts/lakebase_setup_db.sh --db-name databricks_postgres --project-id my-private-project --branch-id staging
 #       → dedicated project + branch.
 #
 # Same flags work whether you run this during local app development or as

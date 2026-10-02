@@ -23,8 +23,8 @@ import type { MoveOption } from './schema.js';
  *
  * `ops_actions` is the app's own WRITABLE table — never synced, starts empty.
  *
- * The recovery_recommendations table is BUILT BY THE TRAINEE (the ML step of
- * the workshop). So its query is fault-tolerant: if the table doesn't exist
+ * The recovery_recommendations table comes from the ML train+score
+ * notebook, so its query is fault-tolerant: if the table doesn't exist
  * yet, we log + leave the mirror empty rather than failing boot.
  *
  * Idempotent in the "only-if-destination-empty" sense — if the position
@@ -41,7 +41,7 @@ type DataConfig = {
     /** gold_open_shortfalls — shortfall + nearest surplus store. */
     openShortfalls: string;
     /** gold_recovery_recommendations — the ML model's ranked moves.
-     *  Built by the trainee; sync tolerates it not existing yet. */
+     *  Produced by the ML notebook; sync tolerates it not existing yet. */
     recoveryRecommendations?: string;
   };
 };
@@ -87,8 +87,8 @@ export async function syncFromDelta(
   };
 
   // Fire the position + shortfall queries in parallel (the slow part). The
-  // recovery-recommendations query is BEST-EFFORT (the trainee may not have
-  // built that Gold table yet), so run it defensively and swallow a
+  // recovery-recommendations query is BEST-EFFORT (the ML notebook may not
+  // have produced that Gold table yet), so run it defensively and swallow a
   // TABLE_OR_VIEW_NOT_FOUND into an empty result.
   const [positionRows, shortfallRows, recoveryRows] = await Promise.all([
     execSqlPaged<{
@@ -165,12 +165,11 @@ export async function syncFromDelta(
            FROM ${fq('recoveryRecommendations')}
            ORDER BY store_id, product_id`,
         ).catch((e) => {
-          // The trainee builds this table in the ML step — until then it
-          // won't exist. Degrade gracefully so the app still boots + the
-          // Visualize layer works; the agent's rank tool is the trainee's
-          // Build-2 task anyway.
+          // The ML notebook produces this table — until the first scoring
+          // run it won't exist. Degrade gracefully so the app still boots +
+          // the Visualize layer works.
           console.warn(
-            `[sync] recovery_recommendations not available yet (this is the trainee's ML step) — leaving that mirror empty: ${(e as Error).message}`,
+            `[sync] recovery_recommendations not available yet (ML notebook has not produced it) — leaving that mirror empty: ${(e as Error).message}`,
           );
           return [] as never[];
         })

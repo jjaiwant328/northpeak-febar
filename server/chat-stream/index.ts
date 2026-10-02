@@ -23,7 +23,7 @@ type ChatConfig = {
  *
  * Drives the OpenAI Agents SDK loop in agent-stream.ts. The agent's
  * `ask_data` tool is what reaches the configured Databricks data backend
- * (MAS endpoint OR Genie space — see refundops.ts dispatcher).
+ * (MAS endpoint OR Genie space — see the storeops.ts dispatcher).
  *
  * Robustness:
  *   1. Persist the user message FIRST so a crash mid-stream still leaves
@@ -183,7 +183,7 @@ export async function handleChatStream(args: {
       genieSpaceId: config.genieSpaceId,
       databricksHost: host,
       // Foundation Model endpoint name. Needs the OpenAI Responses API
-      // (refundops.ts `setOpenAIAPI('responses')`). `databricks-gpt-5-4` is the
+      // (storeops.ts leaves the SDK on the Responses API). `databricks-gpt-5-4` is the
       // baseline default; a newer GPT endpoint with `openai/v1/responses` enabled
       // works too. Claude/non-Responses models 400 BAD_REQUEST on that route. Use
       // the EXACT endpoint name from Serving → Foundation Models; never abbreviate.

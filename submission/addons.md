@@ -1,23 +1,21 @@
-# NorthPeak FE Bar Addons — Executed Build Record
+# NorthPeak FE Bar — Executed Build Record
 
-Companion to `addl_build_rec.md` (the plan). This file records what was actually
-built, the exact commands that ran, and where the execution evidence lives.
+This file records what was actually built, the exact commands that ran, and
+where the execution evidence lives. Baseline was the Databricks AppKit app
+template; everything below is the authored layer (see ../PROVENANCE.md).
 
-Evidence bundle: `jai_northpeak/submission4/`
-Repos: `jaiwant-jonathan_data/northpeak-v2` (baseline, untouched working app),
-`jaiwant-jonathan_data/northpeak-febar` (all enrichment).
+Evidence bundle: `submission/evidence/` (in this repo)
+Repo: `jjaiwant328/northpeak-febar` (public, submission);
+`jaiwant-jonathan_data/northpeak-febar` (private mirror).
 
 ---
 
 ## W1 — Repos
 
 ```bash
-# baseline
-gh repo create jaiwant-jonathan_data/northpeak-v2 --private
-git -C /path/to/northpeak_v2 push https://x-access-token:$(gh auth token)@github.com/jaiwant-jonathan_data/northpeak-v2.git main
-
-# enrichment fork
 gh repo create jaiwant-jonathan_data/northpeak-febar --private
+# public submission repo: jjaiwant328/northpeak-febar (main force-pushed after
+# the deck was scrubbed from history — deck ships as the form attachment only)
 # local working copy: ~/DBXApps/northpeak_v2/northpeak-febar  (own git repo)
 ```
 
@@ -182,10 +180,10 @@ App live: https://northpeak-febar-687974281268075.aws.databricksapps.com
 (`app.yaml` → `DEMO_SCHEMA=northpeak_v2`, `PIPELINE_ID=f456d45a-…`,
 `config/app.json` → `gold_recovery_recommendations_ml`).
 
-v2 (`jai-northpeak`) untouched and still running.
+The original v2 app (`jai-northpeak`) was left untouched and is still running.
 
-## Deferred (Tier 2/3)
+## Deferred / completed since
 
-W9 governance panel, W10 closed-loop outcomes, W11 dashboard ML page, W12
-Command Center rework, W13 eval harness — scoped in `addl_build_rec.md`,
-not built in this pass.
+Built after this record: W9 governance panel, W11 ML dashboard page, managed
+Synced Tables, reverse ETL (W10's sync half). Still deferred: W10 realized-
+outcome labels, W12 Command Center rework, W13 eval harness.

@@ -58,8 +58,8 @@ export type PositionRow = {
   lostSalesExposureUsd: number | null;
   markdownExposureUsd: number | null;
   positionStatus: PositionStatus;
-  /** The model's recommended move for this position (null until scored, or
-   *  until the trainee's `gold_recovery_recommendations` table exists). */
+  /** The model's recommended move for this position (null until scored,
+   *  i.e. until `gold_recovery_recommendations` exists). */
   recommendedMove: MoveType | null;
   predictedRecapturedUsd: number | null;
   /** Live recovery state, from the position's latest `ops_actions` row.

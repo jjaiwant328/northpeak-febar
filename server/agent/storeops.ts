@@ -1,35 +1,27 @@
 /**
- * The store-ops action-taking agent — the DEMO'S DEFINING PIECE, and the
- * WORKSHOP'S main graded surface.
+ * The store-ops action-taking agent — the app's defining piece.
  *
  * Built on `@openai/agents` (OpenAI Agents SDK) pointed at Databricks'
  * Responses API. Tools capture `db` + `userEmail` via closure so every
  * action is attributed to the viewing user (OBO).
  *
- * ════════════════════════════════════════════════════════════════════════
- * WHAT SHIPS WORKING vs WHAT THE TRAINEE BUILDS  (see APP_WORKSHOP.md)
- * ════════════════════════════════════════════════════════════════════════
- * SHIPS WORKING:
- *   - The full agent loop (Responses API wiring, streaming, MLflow spans).
+ * Tool surface:
  *   - `ask_data` — the investigation tool. Config-driven MAS-OR-Genie:
  *     uses the MAS endpoint if `masEndpointName` is set, else the Genie
- *     space if `genieSpaceId` is set. This is the trainee's Build-1 choice
- *     (they wire ONE backend); the app registers whichever is configured.
+ *     space if `genieSpaceId` is set.
+ *   - `find_shortfall` / `rank_recovery_moves` — live reads over the
+ *     Lakebase mirrors (ML-scored recommendations).
+ *   - `simulate_recovery` — what-if projections, live-computed.
+ *   - `propose_recovery_action` → `check_policy` → `execute_recovery_action`
+ *     — the two-stage act layer: a drafted PROPOSED row, an independent
+ *     policy verdict from the guarded AI Gateway endpoint (fail-closed),
+ *     then a human-gated approve with a full audit trail.
  *
- * TRAINEE BUILDS (stubbed here — they THROW "not implemented" so the app
- * still compiles + boots, and the model knows the tools exist):
- *   - `find_shortfall`         → Build 2 (Assist): read the live shortfall
- *   - `rank_recovery_moves`    → Build 2 (Assist): read the ML recommendation
- *   - `execute_recovery_action`→ Build 3 (Act):   the human-in-the-loop write
- *
- * The three-phase chain (Discover → Draft+confirm → Execute) is described in
- * the instructions below so the model attempts it — but Phases 2/3 depend on
- * the stubbed tools, which is the point: the trainee implements them and the
- * chain lights up. Until then, the model can still investigate via ask_data.
- *
- * KEEP `configureAgentsSdk()` as-is — it handles the Databricks Responses API
- * wiring, the `Connection: close` stale-socket workaround, and the 64-char
- * `input[*].id` strip.
+ * `configureAgentsSdk()` builds a PER-REQUEST Runner (never the SDK's
+ * process-global client — concurrent streams would cross-authenticate) and
+ * handles the Databricks Responses API wiring: the `Connection: close`
+ * stale-socket workaround, the 64-char `input[*].id` strip, and the
+ * transient-403 credential retry.
  */
 import type { Request } from 'express';
 import OpenAI from 'openai';
@@ -45,9 +37,9 @@ import * as mlflow from 'mlflow-tracing';
 import { z } from 'zod';
 import { authHeaders } from '../lib/auth.js';
 import type { AppDb } from '../db/index.js';
-// Ready-made Lakebase query + write helpers (Build 2 / Build 3). find_shortfall
-// + rank_recovery_moves read the synced mirrors; execute_recovery_action writes
-// via recordRecoveryAction. See server/db/queries/stores.ts + APP_WORKSHOP.md.
+// Lakebase query + write helpers. find_shortfall + rank_recovery_moves read
+// the synced mirrors; execute_recovery_action writes via recordRecoveryAction
+// / approveRecoveryAction. See server/db/queries/stores.ts.
 import {
   getShortfall,
   worstShortfall,
@@ -119,8 +111,7 @@ export type AgentContext = {
   req: Request;
   /** MAS serving-endpoint name the `ask_data` tool talks to WHEN SET. Set in
    * `config/app.json` as `masEndpointName` (env `MAS_ENDPOINT_NAME`). Leave
-   * empty to use Genie instead. This is the trainee's Build-1 backend choice
-   * — the app registers whichever of MAS/Genie is configured. */
+   * empty to use Genie instead — the app registers whichever is configured. */
   masEndpointName: string;
   /** Genie space id the `ask_data` tool talks to WHEN `masEndpointName` is
    * empty. Set as `genieSpaceId` (env `GENIE_SPACE_ID`). */
@@ -151,7 +142,7 @@ export type AgentContext = {
 // Use the `loggedTool` wrapper (imported as `tool`), not the raw SDK `tool`.
 // ────────────────────────────────────────────────────────────────────────────
 function makeTools(ctx: AgentContext): Tool[] {
-  // ── ask_data — SHIPS WORKING. Config-driven MAS-OR-Genie. ─────────────────
+  // ── ask_data — config-driven MAS-OR-Genie. ────────────────────────────────
   // Delegates to the MAS endpoint if one is configured, else the Genie space.
   // Both helpers return {answer, trace_id} and stream progress via
   // ctx.onToolProgress → the Thinking panel. Registered ONLY when a backend
@@ -181,13 +172,12 @@ function makeTools(ctx: AgentContext): Tool[] {
       ),
   });
 
-  // ── find_shortfall — TRAINEE BUILDS (Build 2 · Assist). STUB. ─────────────
-  // TODO — BUILD 2 (trainee): implement this. Read the open shortfall for
-  // {store_id, product_id} (or the worst one) from Lakebase app.open_shortfalls
-  // + app.store_sku_position: on_hand, recent velocity, weeks_of_supply,
-  // lost-sales exposure, AND the nearest surplus store + its on-hand + distance.
-  // Helper queries are READY in server/db/queries/stores.ts: `getShortfall`,
-  // `worstShortfall`, `getPosition`. See APP_WORKSHOP.md → "Layer 2 — Assist".
+  // ── find_shortfall — read the open shortfall for {store_id, product_id} ──
+  // (or the worst one) from Lakebase app.open_shortfalls +
+  // app.store_sku_position: on_hand, recent velocity, weeks_of_supply,
+  // lost-sales exposure, AND the nearest surplus store + its on-hand +
+  // distance. Queries live in server/db/queries/stores.ts (`getShortfall`,
+  // `worstShortfall`, `getPosition`).
   const findShortfall = tool({
     name: 'find_shortfall',
     description:
@@ -236,15 +226,13 @@ function makeTools(ctx: AgentContext): Tool[] {
       ),
   });
 
-  // ── rank_recovery_moves — TRAINEE BUILDS (Build 2 · Assist). STUB. ────────
-  // TODO — BUILD 2 (trainee): implement this. Read app.recovery_recommendations
-  // for {store_id, product_id} and return the model's recommended_move,
-  // predicted_recaptured_usd, predicted_net_value_usd, and the full move_ranking
-  // (all three options with predicted recaptured $ + net $ + cost). This is the
-  // demo's "ML in the loop" moment — the agent quotes the ranked options + the
-  // recommended move in the draft, and recomputes the what-if arithmetically
-  // from move_ranking. Helper query READY: `getRecommendation` in stores.ts.
-  // See APP_WORKSHOP.md → "Layer 2 — Assist".
+  // ── rank_recovery_moves — read app.recovery_recommendations for ─────────
+  // {store_id, product_id}: the model's recommended_move,
+  // predicted_recaptured_usd, predicted_net_value_usd, and the full
+  // move_ranking (all options with predicted recaptured $ + net $ + cost).
+  // The agent quotes the ranked options + recommended move in the draft and
+  // recomputes the what-if arithmetically from move_ranking. Query:
+  // `getRecommendation` in stores.ts.
   const rankRecoveryMoves = tool({
     name: 'rank_recovery_moves',
     description:
@@ -425,17 +413,16 @@ function makeTools(ctx: AgentContext): Tool[] {
       ),
   });
 
-  // ── execute_recovery_action — TRAINEE BUILDS (Build 3 · Act). STUB. ───────
-  // TODO — BUILD 3 (trainee): implement this — the human-in-the-loop WRITE.
-  // ONLY call this AFTER the user has explicitly approved. Write the approved
-  // move to Lakebase app.ops_actions (move_type, from/to store, units, the
-  // drafted request text, predicted recaptured $, status='approved',
-  // approved_by=ctx.userEmail, an appended audit entry). For a transfer, also
-  // insert a paired 'markdown_hold' row on the SOURCE surplus store. Inputs are
-  // a FILTER ({store_id, product_id, move_type, units, source_store_id?}) + the
-  // drafted request text — NEVER a list of ids. Wrap the write(s) in
-  // db.transaction(...). On commit the caller emits dataMutated so the
-  // Operations page cascades. See APP_WORKSHOP.md → "Layer 3 — Act"
+  // ── execute_recovery_action — the human-in-the-loop WRITE. ──────────────
+  // Called ONLY after the user has explicitly approved AND check_policy has
+  // returned PASS. Approves the PROPOSED row for the store×SKU (applying any
+  // human/policy revision — e.g. policy-capped units — with an audit entry);
+  // falls back to a direct approved write when no proposal exists. For a
+  // transfer, also inserts a paired 'markdown_hold' row on the SOURCE surplus
+  // store. Inputs are a FILTER ({store_id, product_id, move_type, units,
+  // source_store_id?}) + the drafted request text — NEVER a list of ids.
+  // Writes are transactional; on commit the caller emits dataMutated so the
+  // Operations page cascades.
   // ── propose_recovery_action — Phase-2 draft WRITE (status='proposed'). ───
   // Records the drafted move as a PROPOSED action so the queue shows it as
   // awaiting approval (the "Actions Awaiting Approval" state). The approval
@@ -712,10 +699,8 @@ function makeTools(ctx: AgentContext): Tool[] {
       ),
   });
 
-  // find_shortfall / rank_recovery_moves / execute_recovery_action are
-  // registered so the MODEL knows they exist (and the trainee sees them in
-  // the tool list) — they throw until implemented. ask_data is registered
-  // only when a backend is configured.
+  // ask_data is registered only when a backend is configured; the rest of
+  // the tool surface is always available.
   const tools: Tool[] = [
     findShortfall,
     rankRecoveryMoves,

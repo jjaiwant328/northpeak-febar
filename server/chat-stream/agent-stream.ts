@@ -17,7 +17,7 @@ type Msg = { role: string; content: string };
  * Drive the OpenAI Agents SDK loop and emit SSE events.
  *
  * The agent runs against Databricks' Foundation Model serving via the
- * OpenAI-compatible interface (configured in refundops.ts → configureAgentsSdk).
+ * OpenAI-compatible interface (configured in storeops.ts → configureAgentsSdk).
  *
  * We tap THREE event sources from the SDK and translate them to our SSE
  * taxonomy:
@@ -42,7 +42,7 @@ type Msg = { role: string; content: string };
  *
  * Error handling:
  *   - The OpenAI SDK strips response bodies before throwing, so we install
- *     a fetch shim in refundops.ts that captures the body to ctx.modelError.
+ *     a fetch shim in storeops.ts that captures the body to ctx.modelError.
  *     The catch block below prefers that detail over the SDK's stripped
  *     "400 status code (no body)" — what reaches the user is actionable.
  *   - Whatever we put into the SSE `error` event is what the chat bubble
@@ -104,7 +104,7 @@ export async function streamAgentTurn(args: {
     async (rootSpan) => {
       traceId = rootSpan.traceId ?? null;
 
-  // Captured by the OpenAI fetch shim in refundops.ts on any non-2xx
+  // Captured by the OpenAI fetch shim in storeops.ts on any non-2xx
   // response. The SDK throws a generic "400 status code (no body)" because
   // it consumes the body for retry decisions; we read the body in the shim
   // and stash the parsed error_code/message here so the outer catch can

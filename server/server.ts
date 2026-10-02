@@ -1,9 +1,9 @@
 /**
  * Server boot — the ONE place where all backend pieces get wired together.
  *
- * Template responsibilities, in order:
- *   1. Read `config/app.json` (the use-case knobs — agent endpoint, warehouse,
- *      dashboard, Delta sync tables, branding, scripted demo chain).
+ * Boot responsibilities, in order:
+ *   1. Read `config/app.json` (agent endpoint, warehouse, dashboard, Delta
+ *      sync tables, branding, scripted demo chain).
  *   2. Create the AppKit app with the 3 plugins we rely on:
  *        - server()     → Express, OBO auth forwarding, serve-the-client
  *        - lakebase()   → Postgres pool backed by Databricks Lakebase
@@ -11,35 +11,25 @@
  *   3. Run Drizzle migrations against Lakebase (safe-to-re-run on boot).
  *   4. One-shot sync of Delta tables into the Lakebase mirror (`syncFromDelta`)
  *      so the app has an OLTP-friendly local copy of the read-only lakehouse.
- *   5. Get-or-create the MLflow experiment that will hold agent traces, then
- *      `mlflow.init(...)` so `@openai/agents` runs are recorded automatically.
- *   6. Register the Express routes (config, chat, domain CRUD, admin).
+ *   5. Initialize MLflow tracing BEFORE createApp (see the early-init block
+ *      below — losing the global OTel provider race makes every span no-op),
+ *      then register the Express routes (config, chat, domain CRUD, admin).
  *
- * ─────────────────────────────────────────────────────────────────────
- * REPURPOSING THIS TEMPLATE
- * ─────────────────────────────────────────────────────────────────────
- * The structural wiring (boot order, plugin set, route registration) is
- * use-case agnostic — leave it alone. Customization happens here:
- *
- *   • `config/app.json`              — branding, agent endpoint name OR
- *                                       Genie space ID, MLflow experiment
- *                                       path, dashboard id, Delta source
- *                                       tables, scripted demo prompts.
- *   • `db/schema.ts`                 — Lakebase OLTP tables (the writable
- *                                       mirror the agent + UI both use).
+ * Layout:
+ *   • `config/app.json`              — branding, Genie space ID, MLflow
+ *                                      experiment path, dashboard id, Delta
+ *                                      source tables, scripted demo prompts.
+ *   • `db/schema.ts`                 — Lakebase OLTP tables (mirrors + the
+ *                                      writable ops_actions).
  *   • `db/sync.ts`                   — one-shot copy from Delta → Lakebase
- *                                       at boot. Update the table list.
- *   • `db/queries/returns.ts`        — domain queries; rename + rewrite.
- *   • `agent/refundops.ts`           — the agent itself. Rename the file
- *                                       to match your domain, update the
- *                                       import below, and rewrite tools +
- *                                       instructions.
- *   • `routes/returns.ts`            — REST endpoints for the queue. Add
- *                                       new routes for your domain.
+ *                                      at boot.
+ *   • `db/queries/stores.ts`         — domain queries + act-layer writes.
+ *   • `agent/storeops.ts`            — the store-ops agent (tools +
+ *                                      instructions).
+ *   • `routes/stores.ts`             — REST endpoints for the queue.
  *
  * Cross-file: `client/src/shared/types.ts` is the single source of truth
- * for the domain types and is the FIRST thing to update when swapping
- * the data model.
+ * for the domain types.
  */
 // Normalize DATABRICKS_HOST: in Databricks Apps, the runtime sometimes
 // injects a bare hostname (`e2-demo-west.cloud.databricks.com`) overriding
@@ -118,7 +108,7 @@ type AppConfig = {
    * so multiple demos in the same workspace don't share an experiment.
    *
    * Format: `/Users/<email>/<app-name>-agent-traces`
-   * Example: `/Users/me@databricks.com/luxebeauty-operations-agent-traces`
+   * Example: `/Users/me@databricks.com/northpeak-febar-agent-traces`
    *
    * The path is created via the MLflow REST API (POST /api/2.0/mlflow/
    * experiments/create); the running app's principal must have CAN_EDIT
@@ -154,8 +144,8 @@ type AppConfig = {
     tables: {
       storeSkuPosition: string;
       openShortfalls: string;
-      // Optional — the ML recovery-recommendations table. The TRAINEE builds
-      // it (Build 2 ML step), so db/sync.ts tolerates it being absent.
+      // Optional — the ML recovery-recommendations table. Produced by the
+      // ML train+score notebook, so db/sync.ts tolerates it being absent.
       // Mirrors tablesSchema below; keep the two in sync.
       recoveryRecommendations?: string;
     };
@@ -175,8 +165,8 @@ type AppConfig = {
 const tablesSchema = z.object({
   storeSkuPosition: z.string().min(1),
   openShortfalls: z.string().min(1),
-  // Optional — the ML recovery-recommendations table. The trainee builds it
-  // (Build 2 ML step); empty/omitted until then. db/sync.ts tolerates it.
+  // Optional — the ML recovery-recommendations table (produced by the ML
+  // train+score notebook); empty/omitted until then. db/sync.ts tolerates it.
   recoveryRecommendations: z.string().optional(),
 });
 
@@ -525,7 +515,7 @@ await createApp({
   // The agent's `ask_data` tool is MAS-OR-Genie (config-driven): it uses a
   // MAS endpoint if masEndpointName is set, else a Genie space if
   // genieSpaceId is set. Warn only if BOTH are empty (no investigation
-  // backend at all) — picking which one is the trainee's Build-1 choice.
+  // backend at all) — either backend satisfies the investigation tool.
   if (!appConfig.masEndpointName && !appConfig.genieSpaceId) {
     console.warn(
       "[boot] both config.masEndpointName and config.genieSpaceId are empty — the agent won't have an ask_data tool. Set ONE (MAS_ENDPOINT_NAME or GENIE_SPACE_ID) in config/app.json / .env.",

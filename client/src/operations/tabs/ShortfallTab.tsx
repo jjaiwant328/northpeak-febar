@@ -156,7 +156,7 @@ export function ShortfallTab({
         </div>
       ) : recommendation ? (
         <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          No recovery recommendation yet — the ML model scores this in the Build 2 step.
+          No recovery recommendation yet — the recovery model has not scored this position.
         </div>
       ) : null}
 

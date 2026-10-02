@@ -10,7 +10,7 @@
 -- stays flat — the divergence that drove the shortfall.
 --
 -- Reads silver_sales (the SDP pipeline's per-day sales fact — see
--- specifications/01-lakeflow.md). If your pipeline names it differently,
+-- the Lakeflow gold layer). If your pipeline names it differently,
 -- update the table + column names here.
 -- @param catalog STRING = rtdemo
 -- @param schema STRING = demo-northpeak

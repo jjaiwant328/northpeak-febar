@@ -12,10 +12,9 @@
   // CUSTOMIZE per demo: branding, assistantScript, and data.tables names.
 
   // ── Agent data backend: the `ask_data` tool. Config-driven MAS-OR-Genie.
-  //   Set ONE (via env). This is the WORKSHOP'S Build-1 choice — the trainee
-  //   wires either a Genie space (GENIE_SPACE_ID) or a Multi-Agent Supervisor
-  //   endpoint (MAS_ENDPOINT_NAME). The app registers whichever is set; if
-  //   BOTH are empty the agent has no ask_data tool (warned at boot).
+  //   Set ONE (via env): a Genie space (GENIE_SPACE_ID) or a Multi-Agent
+  //   Supervisor endpoint (MAS_ENDPOINT_NAME). The app registers whichever is
+  //   set; if BOTH are empty the agent has no ask_data tool (warned at boot).
   //   The default NorthPeak flow uses Genie ("ask why Store 214 is short").
   "masEndpointName": "${MAS_ENDPOINT_NAME:}",
   "genieSpaceId":    "${GENIE_SPACE_ID:01f1a24bf79019f98136bd1b5aea29c8}",
@@ -40,13 +39,13 @@
   "kaEndpointName":    "${KA_ENDPOINT_NAME:}",
   "lakebaseProjectId": "${LAKEBASE_PROJECT_ID:northpeak}",
   "appUrl":            "${APP_URL:}",
-  // The recovery ML model (UC-registered). The trainee builds it in Build 2.
+  // The recovery ML model (UC-registered), produced by the ML train+score notebook.
   "mlModelName":       "${DEMO_CATALOG:rtdemo}.${DEMO_SCHEMA:demo-northpeak}.recovery_recommender",
 
   // Delta source for boot-time Lakebase mirror (server/db/sync.ts). catalog +
   // schema from env; the table NAMES are the NorthPeak Gold tables. Keep
   // client/src/shared/types.ts + Drizzle schema (server/db/schema.ts) in sync.
-  // recoveryRecommendations is OPTIONAL — the trainee builds that Gold table
+  // recoveryRecommendations is OPTIONAL — the ML notebook produces that Gold table
   // in the ML step, so sync tolerates it not existing yet.
   "data": {
     "catalog": "${DEMO_CATALOG:rtdemo}",

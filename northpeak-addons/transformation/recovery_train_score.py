@@ -8,7 +8,7 @@
 # MAGIC (transfer / expedite / substitute) for every open shortfall and writes the ranked
 # MAGIC result to `gold_recovery_recommendations_ml`.
 # MAGIC
-# MAGIC Spec: `specifications/03-ml-recovery.md`. The pipeline's heuristic MV
+# MAGIC Trains the recovery-move model against the pipeline's gold tables. The heuristic MV
 # MAGIC (`gold_recovery_recommendations`) is untouched — the model's output lands in a
 # MAGIC shadow table (`_ml`) so consumers can be cut over deliberately.
 # MAGIC
@@ -80,7 +80,7 @@ from sklearn.model_selection import train_test_split
 
 mlflow.set_registry_uri("databricks-uc")
 # Experiment parent-folder trap: set_experiment only creates the leaf — the
-# parent folders must exist first, or it NOT_FOUNDs (spec: 03-ml-recovery.md).
+# parent folders must exist first, or it NOT_FOUNDs.
 try:
     from databricks.sdk import WorkspaceClient
 

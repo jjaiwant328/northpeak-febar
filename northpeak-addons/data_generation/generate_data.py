@@ -13,7 +13,7 @@
 # MAGIC out in the ~30 northern (cold-climate) stores while piling up as dead stock in the
 # MAGIC ~40 southern (warm-climate) stores. Same SKUs, opposite problem. The hero shortfall
 # MAGIC is `STORE-0214` (Denver) × `SKU-APP-04412` (Summit Down Parka); the surplus that
-# MAGIC covers it is `STORE-0377` (Colorado Springs, ~100 mi away). See `specifications/01-lakeflow.md`.
+# MAGIC covers it is `STORE-0377` (Colorado Springs, ~100 mi away).
 # MAGIC
 # MAGIC **This is a worked example of the technique, not a fill-in-the-blanks template** —
 # MAGIC a different demo rewrites the domain, schema, and anomaly. What carries over is the
@@ -493,7 +493,7 @@ transfers_df = (
     .withColumn("days_to_fulfill", F.when(F.col("move_type") == "transfer", (1 + F.rand(59) * 2).cast("int")).when(F.col("move_type") == "expedite", (3 + F.rand(60) * 3).cast("int")).otherwise(F.lit(0)))
     .join(F.broadcast(products_df.select("product_id", "price_usd", "cost_usd")), "product_id")
     # --- Learnable outcomes (ranked by NET VALUE = recaptured − cost − margin_impact,
-    # which is how 03-ml-recovery ranks the moves) ---
+    # which is how the recovery model ranks the moves) ---
     # transfer:  high recapture, modest cost that scales with distance → BEST net when
     #            a nearby same-region surplus exists (the hero case: short drive, cheap).
     # expedite:  high recapture but heavy freight cost → net trails transfer unless no
@@ -554,7 +554,7 @@ _save(traffic_df, "raw_store_traffic")
 # MAGIC Six raw datasets written to the Volume. Next: run the SDP pipeline
 # MAGIC (`src/pipeline/*.sql`) to build silver + gold, then the metric view, the recovery
 # MAGIC model (`src/ml/recovery_train_score.py`), the dashboard, and the Genie space.
-# MAGIC Validate against `specifications/01-lakeflow.md` Section C before publishing.
+# MAGIC Validate the hero rows (STORE-0214 short / STORE-0377 surplus) before publishing.
 
 # COMMAND ----------
 

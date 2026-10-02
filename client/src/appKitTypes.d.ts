@@ -5,49 +5,25 @@ import type { SQLTypeMarker, SQLStringMarker, SQLNumberMarker, SQLBooleanMarker,
 
 declare module "@databricks/appkit-ui/react" {
   interface QueryRegistry {
-    daily_refund_trend: {
-        name: "daily_refund_trend";
+    cold_weather_velocity_trend: {
+        name: "cold_weather_velocity_trend";
         parameters: Record<string, never>;
-        result: Array<{
-          /** @sqlType TIMESTAMP */
-          return_date: string;
-          /** @sqlType DOUBLE */
-          total_refund_usd: number;
-        }>;
+        result: Array<Record<string, unknown>>;
       };
-    returns_by_product: {
-        name: "returns_by_product";
+    worst_shortfalls: {
+        name: "worst_shortfalls";
         parameters: Record<string, never>;
-        result: Array<{
-          /** @sqlType STRING */
-          product_name: string;
-          /** @sqlType BIGINT */
-          return_count: number;
-          /** @sqlType DOUBLE */
-          total_refund_usd: number;
-        }>;
+        result: Array<Record<string, unknown>>;
       };
-    worst_lots: {
-        name: "worst_lots";
+    position_mix_by_zone: {
+        name: "position_mix_by_zone";
         parameters: Record<string, never>;
-        result: Array<{
-          /** @sqlType STRING */
-          lot_id: string;
-          /** @sqlType STRING */
-          product_name: string;
-          /** @sqlType STRING */
-          facility: string;
-          /** @sqlType STRING */
-          region: string;
-          /** @sqlType BIGINT */
-          return_count: number;
-          /** @sqlType BIGINT */
-          units_sold: number;
-          /** @sqlType DOUBLE */
-          return_rate_pct: number;
-          /** @sqlType DOUBLE */
-          total_refund_usd: number;
-        }>;
+        result: Array<Record<string, unknown>>;
+      };
+    governance_summary: {
+        name: "governance_summary";
+        parameters: Record<string, never>;
+        result: Array<Record<string, unknown>>;
       };
   }
 }

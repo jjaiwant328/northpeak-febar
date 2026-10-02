@@ -17,8 +17,7 @@ import type { AppDb } from '../db/index.js';
  * timeline). Drives the Operations page (the Visualize layer).
  *
  * NOTE: there is NO write route here. The Act layer writes through the
- * agent's `execute_recovery_action` tool (the trainee's Build-3 task) →
- * app.ops_actions. See APP_WORKSHOP.md.
+ * agent's `execute_recovery_action` tool → app.ops_actions.
  */
 
 const VALID_POSITION_STATUS = [

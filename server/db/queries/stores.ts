@@ -327,8 +327,7 @@ export async function getShortfall(
 
 /**
  * The worst OPEN shortfall by lost-sales exposure. Used by the agent's
- * `find_shortfall` tool (Build 2) when the user doesn't name a store×SKU.
- * Ships as a helper so the trainee's tool has a ready query.
+ * `find_shortfall` tool when the user doesn't name a store×SKU.
  */
 export async function worstShortfall(db: AppDb): Promise<Shortfall | null> {
   const res = await db.execute(sql`
@@ -428,7 +427,7 @@ export async function getRecommendation(
 // ============================================================================
 // Overstock recovery heuristic — the "markdown clock" side of the story.
 //
-// The ML model (recovery_recommender, Build 2) scores only the stockout
+// The ML model (recovery_recommender) scores only the stockout
 // shortfalls; gold_recovery_recommendations has no rows for OVERSTOCK
 // surplus, so asking the agent to recover an overstock store previously hit
 // "recovery data isn't available". When getRecommendation finds no model row,
@@ -836,13 +835,13 @@ export async function recentActivity(
 }
 
 // ============================================================================
-// recordRecoveryAction — the Act layer WRITE (Build 3). The ONLY place the
-// app writes. Filter-driven + transactional (TEMPLATE_MAP pattern #5): inputs
+// recordRecoveryAction — the Act layer WRITE. The ONLY place the
+// app writes. Filter-driven + transactional: inputs
 // are a FILTER + drafted text, never a list of ids. Inserts the approved move
 // into app_v2.ops_actions and — for a transfer — a paired 'markdown_hold' row on
 // the SOURCE surplus store (so it isn't discounted while it feeds the
 // transfer). On commit the caller emits `dataMutated` → the Operations page
-// cascades live. See APP_WORKSHOP.md → "Layer 3 — Act".
+// cascades live.
 // ============================================================================
 
 export async function recordRecoveryAction(
