@@ -1,0 +1,92 @@
+{
+ "job_id": 978376091680947,
+ "run_id": 744186146676875,
+ "run_name": "[FE Bar] NorthPeak v2 \u2014 reverse-ETL ops_actions to UC",
+ "state": {
+  "life_cycle_state": "TERMINATED",
+  "result_state": "SUCCESS",
+  "state_message": "",
+  "user_cancelled_or_timedout": false
+ },
+ "start_time": 1790897572041,
+ "end_time": 1790897631100,
+ "task_run_id": 97880932282637,
+ "run_output": {
+  "metadata": {
+   "cleanup_duration": 0,
+   "creator_user_name": "jaiwant.jonathan@databricks.com",
+   "effective_performance_target": "PERFORMANCE_OPTIMIZED",
+   "end_time": 1790897630759,
+   "execution_duration": 52000,
+   "format": "MULTI_TASK",
+   "job_id": 978376091680947,
+   "job_run_id": 744186146676875,
+   "number_in_job": 97880932282637,
+   "original_attempt_run_id": 97880932282637,
+   "parent_run_id": 744186146676875,
+   "run_id": 97880932282637,
+   "run_name": "reverse_sync",
+   "run_page_url": "https://fe-vm-jai-classic-ws.cloud.databricks.com/?o=687974281268075#job/978376091680947/run/97880932282637",
+   "run_type": "JOB_RUN",
+   "setup_duration": 6000,
+   "start_time": 1790897572072,
+   "state": {
+    "life_cycle_state": "TERMINATED",
+    "result_state": "SUCCESS",
+    "state_message": "",
+    "user_cancelled_or_timedout": false
+   },
+   "status": {
+    "state": "TERMINATED",
+    "termination_details": {
+     "code": "SUCCESS",
+     "message": "",
+     "type": "SUCCESS"
+    }
+   },
+   "task_key": "reverse_sync",
+   "tasks": [
+    {
+     "attempt_number": 0,
+     "cleanup_duration": 0,
+     "effective_performance_target": "PERFORMANCE_OPTIMIZED",
+     "end_time": 1790897630759,
+     "environment_key": "sdk_default",
+     "execution_duration": 52000,
+     "notebook_task": {
+      "base_parameters": {
+       "catalog": "rtdemo",
+       "schema": "northpeak_v2"
+      },
+      "notebook_path": "/Workspace/Users/jaiwant.jonathan@databricks.com/northpeak-addons-prod/files/transformation/reverse_sync_outcomes",
+      "source": "WORKSPACE"
+     },
+     "run_id": 97880932282637,
+     "run_page_url": "https://fe-vm-jai-classic-ws.cloud.databricks.com/?o=687974281268075#job/978376091680947/run/97880932282637",
+     "setup_duration": 6000,
+     "start_time": 1790897572072,
+     "state": {
+      "life_cycle_state": "TERMINATED",
+      "result_state": "SUCCESS",
+      "state_message": "",
+      "user_cancelled_or_timedout": false
+     },
+     "status": {
+      "state": "TERMINATED",
+      "termination_details": {
+       "code": "SUCCESS",
+       "message": "",
+       "type": "SUCCESS"
+      }
+     },
+     "task_key": "reverse_sync"
+    }
+   ],
+   "trigger": "ONE_TIME"
+  },
+  "notebook_output": {
+   "result": "{\"target_table\": \"rtdemo.northpeak_v2.ops_actions_outcomes\", \"source_table\": \"databricks_postgres:app_v2.ops_actions\", \"rows_read\": 4, \"rows_in_target\": 4, \"merge\": {\"num_affected_rows\": 4, \"num_updated_rows\": 0, \"num_deleted_rows\": 0, \"num_inserted_rows\": 4}, \"statuses\": {\"approved\": 1, \"overridden\": 1, \"proposed\": 2}}",
+   "truncated": false
+  }
+ }
+}
