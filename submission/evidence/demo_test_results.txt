@@ -47,11 +47,60 @@
 
 == MANUAL — need a logged-in browser (owner runs) ==
 
-M1. Beat 4 on STORE-0023: propose → policy PASS → execute; queue shows ONE
-    proposed row; approved row shows capped units + overridden audit entry.
-M2. Beat 6 Genie answers match the Analytics page.
-M3. Governance strip (Platform page) shows non-zero "today" after Beat 4.
-M4. ML Recovery dashboard page renders with data.
-M5. Thumbs feedback appears as an MLflow assessment on the trace.
-M6. "Policy gate is warming up" message → re-send approve after ~60s works
-    (fail-closed gate behaving; not a loop).
+M1. Act chain integrity (Beat 4)
+    Do:   Operations → open STORE-0023 → in the dock paste:
+          "What's the best recovery move for Store STORE-0023 on SKU
+          SKU-APP-04412? Propose it, check it against policy, and if it
+          passes, execute it."  Then reply: approve
+    Pass: Thinking panel shows find_shortfall → rank_recovery_moves →
+          propose_recovery_action → check_policy (PASS) →
+          execute_recovery_action ONCE. Position drawer shows ONE action
+          (no stale duplicates); approved units match what policy allowed
+          (a policy cap shows as an 'overridden' audit entry on the row).
+    Fail: multiple proposed rows in queue, or approved units ≠ policy-capped
+          units.
+
+M2. Genie over MCP (Beat 6)
+    Do:   paste: "Ask Genie: how much are we losing to stockouts, and what
+          is our markdown exposure right now?"
+    Pass: ~$4.9M lost-sales / ~$4.6M markdown — matches the Analytics page.
+          Thinking panel shows the MCP path. (2026-10-01 fix: the managed
+          Genie MCP endpoint went async — query returns a pending handle and
+          the client now polls via the endpoint's poll_response tool. The
+          "polling tool isn't available" error is fixed; REST poll fallback
+          unchanged.)
+    Fail: "polling tool isn't available" text, or numbers ≠ dashboard.
+
+M3. Governance strip
+    Do:   AFTER running M1 (so a policy check lands today), open the
+          Platform page → "Govern it once" layer → strip below the fold.
+    Pass: "policy checks logged" ≥ 15, "today" ≥ 1, "blocked / errors"
+          ≥ 1, avg verdict latency non-zero, last check = today. Badges:
+          ✓ guardrails on ✓ rate-limited ✓ inference-logged ✓ runs as the
+          viewing user. (Numbers are the live part.)
+    Fail: dashes everywhere (route error — check app SP grant on
+          jai_tech.northpeak).
+
+M4. ML Recovery dashboard page
+    Do:   Dashboard page → "Open in Databricks" pill → 4th tab
+          "ML Recovery".
+    Pass: move-mix bar (40 transfer / 110 expedite), predicted-recaptured
+          counter (~$1.5M), scored counter 150, version counter 6,
+          top-moves table with STORE-0015/0214 near the top.
+    Fail: page missing or empty widgets (dataset binding broken).
+
+M5. MLflow trace + assessment
+    Do:   after any assistant answer, click "View trace" under the message;
+          then thumbs-up the same message and reload the trace →
+          Assessments tab.
+    Pass: trace shows storeops.turn with tool spans; a HUMAN-source
+          thumbs-up assessment appears within ~30s.
+    Fail: "Trace pending…" (experiment env missing) or no assessment.
+
+M6. Fail-closed gate (only if it triggers)
+    Do:   if the agent replies "policy gate is warming up, reply approve
+          again in a minute" — wait ~60s, reply: approve
+    Pass: second attempt completes check_policy → execute WITHOUT
+          re-proposing (Thinking panel shows no new
+          propose_recovery_action call).
+    Fail: agent redrafts/re-proposes instead of re-checking (the old loop).

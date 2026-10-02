@@ -1211,7 +1211,7 @@ function GovernanceStrip() {
         </div>
         <div className="dx-gov-badges">
           <span className="dx-gov-badge">✓ guardrails on</span>
-          <span className="dx-gov-badge">✓ rate-limited 2/min</span>
+          <span className="dx-gov-badge">✓ rate-limited</span>
           <span className="dx-gov-badge">✓ inference-logged to UC</span>
           <span className="dx-gov-badge">✓ runs as the viewing user</span>
         </div>
