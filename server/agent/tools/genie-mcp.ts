@@ -30,8 +30,11 @@ function parseGenieHandle(
 ): { conversationId: string; messageId: string } | null {
   try {
     const obj = JSON.parse(text) as Record<string, unknown>;
-    const cid = obj['conversation_id'];
-    const mid = obj['message_id'];
+    // The endpoint mixes casings: pending payloads carry camelCase ids
+    // (conversationId/messageId) while some tool schemas spell them
+    // snake_case — accept both.
+    const cid = obj['conversationId'] ?? obj['conversation_id'];
+    const mid = obj['messageId'] ?? obj['message_id'];
     const status = String(obj['status'] ?? '').toUpperCase();
     if (typeof cid !== 'string' || typeof mid !== 'string') return null;
     if (!status || ['COMPLETED', 'SUCCEEDED', 'FAILED', 'CANCELLED'].includes(status))
