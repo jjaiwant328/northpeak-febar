@@ -1131,7 +1131,9 @@ function AgenticAppsStrip() {
 
 type GovernanceStats = {
   requests_total: number;
+  requests_7d: number;
   requests_today: number;
+  errors_7d: number;
   errors_total: number;
   requesters: number;
   avg_latency_ms: number;
@@ -1187,16 +1189,16 @@ function GovernanceStrip() {
       <div className="dx-gov-body">
         <div className="dx-gov-stats">
           <div className="dx-gov-stat">
-            <span className="dx-gov-num">{stats ? stats.requests_total : '—'}</span>
-            <span className="dx-gov-lbl">policy checks logged</span>
+            <span className="dx-gov-num">{stats ? stats.requests_7d : '—'}</span>
+            <span className="dx-gov-lbl">policy checks · 7 days</span>
           </div>
           <div className="dx-gov-stat">
             <span className="dx-gov-num">{stats ? stats.requests_today : '—'}</span>
             <span className="dx-gov-lbl">today</span>
           </div>
           <div className="dx-gov-stat">
-            <span className="dx-gov-num">{stats ? stats.errors_total : '—'}</span>
-            <span className="dx-gov-lbl">blocked / errors</span>
+            <span className="dx-gov-num">{stats ? stats.errors_7d : '—'}</span>
+            <span className="dx-gov-lbl">blocked / errors · 7 days</span>
           </div>
           <div className="dx-gov-stat">
             <span className="dx-gov-num">

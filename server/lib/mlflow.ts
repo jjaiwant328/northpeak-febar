@@ -11,6 +11,95 @@
 import type { Request } from 'express';
 import { getExecutionContext } from '@databricks/appkit';
 import { authHeaders } from './auth.js';
+
+/**
+ * Resolve the tracing token WITHOUT appkit's execution context — used by the
+ * early mlflow.init that must run BEFORE createApp (see server.ts): appkit /
+ * the Apps runtime registers the global OTel tracer provider during plugin
+ * setup, and once a global provider exists mlflow-tracing's NodeSDK can't
+ * install its SpanProcessor — every withSpan then returns a no-op span and
+ * messages persist trace_id "no-op-span-trace-id". SP OAuth first (Apps
+ * inject DATABRICKS_CLIENT_ID/SECRET), PAT fallback (local dev).
+ */
+export async function resolveTracingToken(host: string): Promise<string | null> {
+  const base = host.replace(/\/$/, '');
+  const clientId = process.env.DATABRICKS_CLIENT_ID;
+  const clientSecret = process.env.DATABRICKS_CLIENT_SECRET;
+  if (clientId && clientSecret) {
+    const resp = await fetch(`${base}/oidc/v1/token`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
+      },
+      body: new URLSearchParams({
+        grant_type: 'client_credentials',
+        scope: 'all-apis',
+      }),
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!resp.ok) return null;
+    const json = (await resp.json()) as { access_token?: string };
+    return json.access_token ?? null;
+  }
+  return process.env.DATABRICKS_TOKEN ?? null;
+}
+
+/**
+ * Same get-or-create as ensureMlflowExperiment but authenticates with an
+ * explicit Bearer token (no appkit context required pre-boot).
+ */
+export async function ensureMlflowExperimentWithToken(
+  host: string,
+  experimentPath: string,
+  token: string,
+): Promise<string> {
+  const base = host.replace(/\/$/, '');
+  const h = new Headers({
+    Authorization: `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  });
+  const timeout = () => AbortSignal.timeout(30 * 1000);
+
+  const getUrl = `${base}/api/2.0/mlflow/experiments/get-by-name?experiment_name=${encodeURIComponent(experimentPath)}`;
+  const getResp = await fetch(getUrl, { headers: h, signal: timeout() });
+  if (getResp.ok) {
+    const body = (await getResp.json()) as { experiment?: { experiment_id?: string } };
+    if (body.experiment?.experiment_id) return body.experiment.experiment_id;
+  }
+  const createResp = await fetch(`${base}/api/2.0/mlflow/experiments/create`, {
+    method: 'POST',
+    headers: h,
+    signal: timeout(),
+    body: JSON.stringify({ name: experimentPath }),
+  });
+  if (!createResp.ok) {
+    const errText = await createResp.text();
+    if (/Parent directory does not exist/i.test(errText)) {
+      const parent = experimentPath.slice(0, experimentPath.lastIndexOf('/'));
+      await fetch(`${base}/api/2.0/workspace/mkdirs`, {
+        method: 'POST',
+        headers: h,
+        signal: timeout(),
+        body: JSON.stringify({ path: parent }),
+      });
+      const retry = await fetch(`${base}/api/2.0/mlflow/experiments/create`, {
+        method: 'POST',
+        headers: h,
+        signal: timeout(),
+        body: JSON.stringify({ name: experimentPath }),
+      });
+      if (retry.ok) {
+        const body = (await retry.json()) as { experiment_id?: string };
+        if (body.experiment_id) return body.experiment_id;
+      }
+    }
+    throw new Error(`mlflow create failed: ${createResp.status} ${errText}`);
+  }
+  const body = (await createResp.json()) as { experiment_id?: string };
+  if (!body.experiment_id) throw new Error('mlflow create returned no experiment_id');
+  return body.experiment_id;
+}
 export async function ensureMlflowExperiment(
   host: string,
   experimentPath: string,

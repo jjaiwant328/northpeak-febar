@@ -73,7 +73,11 @@ import * as mlflow from 'mlflow-tracing';
 import { createDb } from './db/index.js';
 import { runMigrations } from './db/migrate.js';
 import { syncFromDelta } from './db/sync.js';
-import { ensureMlflowExperiment } from './lib/mlflow.js';
+import {
+  ensureMlflowExperiment,
+  ensureMlflowExperimentWithToken,
+  resolveTracingToken,
+} from './lib/mlflow.js';
 
 import { registerConfigRoutes } from './routes/config.js';
 import { registerChatRoutes } from './routes/chat.js';
@@ -416,6 +420,45 @@ let migrationsReady: Promise<void> = new Promise(() => {
 // read by both the route registrations and the background-init block.
 let db: ReturnType<typeof createDb>;
 
+// MLflow tracing must initialize BEFORE createApp: appkit (and the Apps
+// runtime's injected OTEL_* config) registers the global OTel tracer provider
+// during plugin setup, and OTel allows only ONE global provider — once it
+// exists, mlflow-tracing's NodeSDK can't install its SpanProcessor and every
+// withSpan silently returns a no-op span (messages then persist
+// trace_id "no-op-span-trace-id" and "View trace" breaks). Resolve the
+// experiment with self-contained auth (SP OAuth / PAT — no appkit context
+// yet) and init here. Tradeoff: appkit's own OTLP telemetry loses the global
+// provider instead — acceptable, agent traces matter more for this app.
+let mlflowInitializedEarly = false;
+{
+  const host = (process.env.DATABRICKS_HOST ?? '').replace(/\/$/, '');
+  const appName = (process.env.DATABRICKS_APP_NAME ?? '').trim();
+  const experimentPath =
+    appConfig.agentMlflowExperimentPath ||
+    (appName ? `/Shared/solution_builder/${appName}-agent-traces` : '');
+  if (host && experimentPath) {
+    try {
+      const token = await resolveTracingToken(host);
+      if (token) {
+        const earlyId = await ensureMlflowExperimentWithToken(host, experimentPath, token);
+        mlflow.init({
+          trackingUri: 'databricks',
+          experimentId: earlyId,
+          host,
+          // SP creds in env are resolved by the SDK itself; pass the token
+          // only when there are none (local dev / PAT).
+          ...(process.env.DATABRICKS_CLIENT_ID ? {} : { databricksToken: token }),
+        });
+        agentExperimentId = earlyId;
+        mlflowInitializedEarly = true;
+        console.log(`[boot] MLflow tracing active EARLY (id=${earlyId}) — global OTel provider is ours`);
+      }
+    } catch (e) {
+      console.warn('[boot] early MLflow init failed, will retry post-plugins:', (e as Error).message);
+    }
+  }
+}
+
 // No `const appkit =` — everything we need from the app is used inside
 // onPluginsReady (via its typed `appkit` param); the server auto-starts and
 // we never reference the returned map at the top level.
@@ -626,7 +669,11 @@ migrationsReady = (async () => {
 migrationsReady.catch(() => {});
 
 // Fire-and-forget: MLflow setup trails migrations but nothing awaits it.
+// Skipped entirely when the early (pre-createApp) init already won the
+// global OTel provider — re-initializing here would shut the early SDK down
+// and hand the provider fight back to appkit.
 void (async () => {
+  if (mlflowInitializedEarly) return;
   // Wait for migrations to complete (or fail) before doing MLflow setup —
   // MLflow doesn't depend on the DB, but ordering keeps the boot log readable.
   await migrationsReady.catch(() => {/* gate already surfaced this */});

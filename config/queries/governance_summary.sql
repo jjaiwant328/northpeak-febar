@@ -8,9 +8,11 @@
 -- @param schema STRING = northpeak
 SELECT
   CAST(COUNT(*) AS BIGINT) AS requests_total,
+  CAST(SUM(CASE WHEN request_date >= date_sub(current_date(), 7) THEN 1 ELSE 0 END) AS BIGINT) AS requests_7d,
   CAST(SUM(CASE WHEN request_date = current_date() THEN 1 ELSE 0 END) AS BIGINT) AS requests_today,
+  CAST(SUM(CASE WHEN request_date >= date_sub(current_date(), 7) AND status_code >= 400 THEN 1 ELSE 0 END) AS BIGINT) AS errors_7d,
   CAST(SUM(CASE WHEN status_code >= 400 THEN 1 ELSE 0 END) AS BIGINT) AS errors_total,
   CAST(COUNT(DISTINCT requester) AS BIGINT) AS requesters,
-  CAST(ROUND(AVG(execution_duration_ms)) AS BIGINT) AS avg_latency_ms,
+  CAST(ROUND(AVG(CASE WHEN request_date >= date_sub(current_date(), 7) THEN execution_duration_ms END)) AS BIGINT) AS avg_latency_ms,
   CAST(MAX(request_time) AS STRING) AS last_call
 FROM IDENTIFIER('`' || :catalog || '`.`' || :schema || '`.`jai_guarded_payload`')
