@@ -1,0 +1,28 @@
+Name: northpeak-addons
+Target: prod
+Workspace:
+  User: jaiwant.jonathan@databricks.com
+  Path: /Workspace/Users/jaiwant.jonathan@databricks.com/northpeak-addons-prod
+Resources:
+  Jobs:
+    northpeak_gen_v2:
+      Name: [FE Bar] NorthPeak v2 — generate raw data
+      URL:  https://fe-vm-jai-classic-ws.cloud.databricks.com/jobs/981936535763843?w=687974281268075
+    northpeak_ml_v2:
+      Name: [FE Bar] NorthPeak v2 — train + score recovery model
+      URL:  https://fe-vm-jai-classic-ws.cloud.databricks.com/jobs/905011916873159?w=687974281268075
+    northpeak_reverse_sync:
+      Name: [FE Bar] NorthPeak v2 — reverse-ETL ops_actions to UC
+      URL:  https://fe-vm-jai-classic-ws.cloud.databricks.com/jobs/978376091680947?w=687974281268075
+  Pipelines:
+    northpeak_ops_v2:
+      Name: [FE Bar] NorthPeak v2 — raw to silver to gold
+      URL:  https://fe-vm-jai-classic-ws.cloud.databricks.com/pipelines/f456d45a-2b87-4090-a055-2da4d9ddad76?w=687974281268075
+  Schemas:
+    demo_schema:
+      Name: northpeak_v2
+      URL:  https://fe-vm-jai-classic-ws.cloud.databricks.com/explore/data/rtdemo/northpeak_v2?w=687974281268075
+  Volumes:
+    raw_data:
+      Name: raw_data
+      URL:  https://fe-vm-jai-classic-ws.cloud.databricks.com/explore/data/volumes/rtdemo/northpeak_v2/raw_data?w=687974281268075
