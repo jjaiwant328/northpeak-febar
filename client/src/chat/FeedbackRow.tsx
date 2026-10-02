@@ -59,9 +59,13 @@ export function FeedbackRow({
   // The most common cause of a stuck "Trace pending…" is `experimentId`
   // being null — set `agentMlflowExperimentPath` in config/app.json so the
   // server can auto-create the experiment. See server.ts AppConfig docs.
+  // Path-form deep link: /ml/experiments/<id>/traces/<trace_id> — the
+  // traces-v4 UI redirects this to the selected trace's drawer. The legacy
+  // ?selectedEvaluationId= param lands on an EMPTY detail page for bare
+  // tr- ids (it expects the trace:/catalog.schema/id form there).
   const traceUrl =
     traceId && experimentId && workspaceUrl
-      ? `${workspaceUrl.replace(/\/$/, '')}/ml/experiments/${experimentId}/traces?selectedEvaluationId=${traceId}`
+      ? `${workspaceUrl.replace(/\/$/, '')}/ml/experiments/${experimentId}/traces/${traceId}`
       : null;
 
   async function submit(v: 'up' | 'down', rationale?: string) {
