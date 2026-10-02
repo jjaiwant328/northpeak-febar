@@ -33,7 +33,6 @@ import {
   HardDrive,
   Activity,
   Server,
-  Code2,
   MessagesSquare,
   type LucideIcon,
 } from 'lucide-react';
@@ -941,8 +940,7 @@ function CapabilityRow({ cap }: { cap: Capability }) {
 
 function LayerBand({ layer, index }: { layer: Layer; index: number }) {
   const Scene = layer.Scene;
-  const hasStrip =
-    layer.id === 'ingest-transform' || layer.id === 'speak-to-data';
+  const hasStrip = layer.id === 'speak-to-data' || layer.id === 'govern';
   // Layers whose scene already draws its own frame (Act's mock browser)
   // or wastes whitespace inside the scene-card (Govern's chip ring) get
   // the bare-scene modifier: phone-only, drops the outer tinted chrome
@@ -973,79 +971,9 @@ function LayerBand({ layer, index }: { layer: Layer; index: number }) {
           ))}
         </div>
       </div>
-      {layer.id === 'ingest-transform' && <GenieCodeStrip />}
       {layer.id === 'speak-to-data' && <AgenticAppsStrip />}
       {layer.id === 'govern' && <GovernanceStrip />}
     </section>
-  );
-}
-
-// ===========================================================================
-// Genie Code strip — compact, sits INSIDE the Ingest + Transform layer.
-// Keeps the framing ("describe it, get assets") but at sidebar scale.
-// ===========================================================================
-
-function GenieCodeStrip() {
-  return (
-    <div className="dx-genie-strip">
-      <div className="dx-genie-strip-head">
-        <span className="dx-genie-strip-icon">
-          <Code2 className="size-3.5" />
-        </span>
-        <span className="dx-genie-strip-label">
-          <strong>Built with Genie Code</strong>
-          <span className="dx-genie-strip-sub">
-            Describe the pipeline — Genie Code writes the SQL, the DAG, the tests.
-          </span>
-        </span>
-      </div>
-
-      {/* "Type a brief → get a pipeline" demo (Bronze → Silver → Gold) */}
-      <div className="dx-genie-stage" aria-hidden>
-        {/* Left: prompt input that types itself */}
-        <div className="dx-genie-prompt">
-          <span className="dx-genie-prompt-chev">$</span>
-          <span className="dx-genie-prompt-text">
-            <span className="dx-genie-prompt-typed">
-              build a silver-to-gold pipeline for store inventory
-            </span>
-            <span className="dx-genie-prompt-caret" />
-          </span>
-        </div>
-
-        {/* Arrow connector: solid track + travelling dot, anchored on both sides */}
-        <div className="dx-genie-arrow">
-          <span className="dx-genie-arrow-track" />
-          <span className="dx-genie-arrow-dot" />
-          <span className="dx-genie-arrow-head">▶</span>
-        </div>
-
-        {/* Right: emitted artifact — a tiny pipeline DAG (Bronze → Silver → Gold) */}
-        <div className="dx-genie-artifact">
-          <div className="dx-genie-artifact-bar">
-            <Workflow className="size-3" />
-            <span>pipeline.sql</span>
-            <span className="dx-genie-artifact-status">ready</span>
-          </div>
-          <div className="dx-genie-artifact-body dx-pipeline-body">
-            <div className="dx-pipeline-stage dx-pipeline-stage-bronze">
-              <span className="dx-pipeline-dot" />
-              <span className="dx-pipeline-label">Bronze</span>
-            </div>
-            <span className="dx-pipeline-arrow">→</span>
-            <div className="dx-pipeline-stage dx-pipeline-stage-silver">
-              <span className="dx-pipeline-dot" />
-              <span className="dx-pipeline-label">Silver</span>
-            </div>
-            <span className="dx-pipeline-arrow">→</span>
-            <div className="dx-pipeline-stage dx-pipeline-stage-gold">
-              <span className="dx-pipeline-dot" />
-              <span className="dx-pipeline-label">Gold</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
   );
 }
 
