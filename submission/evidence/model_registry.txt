@@ -36,3 +36,7 @@
     }
   ]
 }
+
+# 2026-10-03 — daily chained retrain (reverse_sync → train_score) promoted v7
+alias @prod = v7 · v7 RMSE 297.39 · 150 shortfalls re-scored
+(v6: RMSE 302.71 — eval numbers in model_eval.txt were measured on v6 @prod)

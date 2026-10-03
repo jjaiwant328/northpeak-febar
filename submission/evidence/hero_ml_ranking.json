@@ -1,54 +1,15 @@
 {
-  "manifest": {
-    "chunks": [
-      {
-        "chunk_index": 0,
-        "row_count": 1,
-        "row_offset": 0
-      }
-    ],
-    "format": "JSON_ARRAY",
-    "schema": {
-      "column_count": 3,
-      "columns": [
-        {
-          "name": "store_id",
-          "position": 0,
-          "type_name": "STRING",
-          "type_text": "STRING"
-        },
-        {
-          "name": "product_id",
-          "position": 1,
-          "type_name": "STRING",
-          "type_text": "STRING"
-        },
-        {
-          "name": "move_ranking",
-          "position": 2,
-          "type_name": "STRING",
-          "type_text": "STRING"
-        }
-      ]
-    },
-    "total_chunk_count": 1,
-    "total_row_count": 1,
-    "truncated": false
-  },
-  "result": {
-    "chunk_index": 0,
-    "data_array": [
-      [
-        "STORE-0214",
-        "SKU-APP-04412",
-        "[{\"move\":\"transfer\",\"units\":121,\"cost_usd\":169.90828740979975,\"predicted_recaptured_usd\":19530.29296875,\"predicted_net_value_usd\":19360.3846813402,\"source_store_id\":\"STORE-0377\"},{\"move\":\"substitute\",\"units\":121,\"cost_usd\":0.0,\"predicted_recaptured_usd\":11091.7099609375,\"predicted_net_value_usd\":3228.0409609375,\"substitute_product_id\":\"SKU-APP-10365\"},{\"move\":\"expedite\",\"units\":121,\"cost_usd\":1489.0,\"predicted_recaptured_usd\":15590.873046875,\"predicted_net_value_usd\":14101.873046875}]"
-      ]
-    ],
-    "row_count": 1,
-    "row_offset": 0
-  },
-  "statement_id": "01f1bd29-bdaa-11fc-bb68-71f2e1b70939",
-  "status": {
-    "state": "SUCCEEDED"
-  }
+ "note": "v7 @prod (2026-10-03 chained retrain); columns: store_id, product_id, recommended_move, source, substitute, units, recaptured, net, move_ranking, scored_at",
+ "row": [
+  "STORE-0214",
+  "SKU-APP-04412",
+  "transfer",
+  "STORE-0377",
+  null,
+  "121",
+  "19775.037109375",
+  "19605.1288219652",
+  "[{\"move\":\"transfer\",\"units\":121,\"cost_usd\":169.90828740979975,\"predicted_recaptured_usd\":19775.037109375,\"predicted_net_value_usd\":19605.1288219652,\"source_store_id\":\"STORE-0377\"},{\"move\":\"substitute\",\"units\":121,\"cost_usd\":0.0,\"predicted_recaptured_usd\":10274.453125,\"predicted_net_value_usd\":2410.784125,\"substitute_product_id\":\"SKU-APP-10365\"},{\"move\":\"expedite\",\"units\":121,\"cost_usd\":1489.0,\"predicted_recaptured_usd\":17829.568359375,\"predicted_net_value_usd\":16340.568359375}]",
+  "2026-10-03T06:04:29.452Z"
+ ]
 }

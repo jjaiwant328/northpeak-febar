@@ -92,7 +92,9 @@ resources:
       schedule:
         quartz_cron_expression: "0 0 6 * * ?"
         timezone_id: "UTC"
-        pause_status: UNPAUSED
+        # PAUSED for the demo/role-play window — a daily retrain drifts the
+        # hero numbers mid-presentation. Re-enable (UNPAUSED) after.
+        pause_status: PAUSED
       tasks:
         - task_key: reverse_sync
           notebook_task:

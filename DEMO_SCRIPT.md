@@ -25,9 +25,9 @@ Data: `rtdemo.northpeak_v2` (fresh Lakeflow build) · Evidence: `submission/evid
 
 4. **ML-scored recommendations** — recovery options in the drawer come from
    `gold_recovery_recommendations_ml`: an XGBoost model trained on 40K
-   historical transfer outcomes (Optuna-tuned, RMSE $303 on holdout),
+   historical transfer outcomes (Optuna-tuned, RMSE $297 on holdout),
    registered in Unity Catalog as `rtdemo.northpeak_v2.recovery_recommender`
-   **v6 @prod**, batch-scored across all 150 open shortfalls.
+   **v7 @prod**, batch-scored across all 150 open shortfalls.
 5. **Real Lakeflow pipeline** — raw → silver → gold built from scratch as a
    self-contained bundle (`northpeak-addons/`): 3.6M+ rows, 3 silver MVs, 4
    gold MVs + a metric view, into a fresh governed schema `rtdemo.northpeak_v2`.
@@ -44,7 +44,7 @@ Data: `rtdemo.northpeak_v2` (fresh Lakeflow build) · Evidence: `submission/evid
 
 | Role | Store | SKU | Why |
 |---|---|---|---|
-| Stockout | `STORE-0214` | `SKU-APP-04412` | ML pick: transfer 121u from `STORE-0377`, ~$19.5K recaptured |
+| Stockout | `STORE-0214` | `SKU-APP-04412` | ML pick: transfer 121u from `STORE-0377`, ~$19.8K recaptured |
 | Stockout (biggest $) | `STORE-0034` | `SKU-APP-04412` | $85.4K lost-sales exposure |
 | Overstock | `STORE-0026` | `SKU-APP-04412` | 987 units, velocity 0, $73.7K markdown exposure |
 
@@ -134,7 +134,7 @@ against this workspace."*
   markdown exposure). Ask the assistant to fix the overstock — it recommends
   markdown-hold vs transfer with the live heuristic (labeled live-computed).
 - **ML evidence**: `submission4/` — pipeline update COMPLETED, table counts,
-  model registry (@prod → v6), endpoint status READY, endpoint invocation JSON
+  model registry (@prod → v7), endpoint status READY, endpoint invocation JSON
   matching the batch score to the cent.
 - **Governance**: every AI call runs through Unity AI Gateway — spend caps,
   guardrails, inference logging; MLflow traces every agent turn
