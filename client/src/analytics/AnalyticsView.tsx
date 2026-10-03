@@ -24,7 +24,6 @@
 import { useEffect, useState } from 'react';
 import { BarChart, LineChart } from '@databricks/appkit-ui/react';
 import { fetchWarehouse, type Warehouse } from '@/lib/api';
-import { BRAND_PALETTE } from '@/lib/brand';
 import { RtPitch } from '@/architecture/RtPitch';
 
 /**
@@ -68,12 +67,52 @@ function useChartData<T = Record<string, unknown>>(key: string): {
   return state;
 }
 
+const ZONES = ['North', 'South', 'Mixed'] as const;
+const ZONE_COLORS = ['#E5484D', '#FFB020', '#3C6997']; // matches the map
+const STATUS_KEYS = ['stockout', 'at_risk', 'overstock'] as const;
+const STATUS_COLORS = ['#E5484D', '#E07A00', '#FFB020'];
+
+/** Long rows {week, climate_zone, units_sold} → wide {week, North, South, Mixed}. */
+function pivotVelocity(rows: Record<string, unknown>[]) {
+  const byWeek = new Map<string, Record<string, unknown>>();
+  for (const r of rows) {
+    const week = String(r.week).slice(0, 10);
+    const cur = byWeek.get(week) ?? { week };
+    cur[String(r.climate_zone)] = Number(r.units_sold);
+    byWeek.set(week, cur);
+  }
+  return [...byWeek.values()].sort((a, b) =>
+    String(a.week).localeCompare(String(b.week)),
+  );
+}
+
+/** Long rows {climate_zone, position_status, position_count} → wide per zone. */
+function pivotZoneMix(rows: Record<string, unknown>[]) {
+  const byZone = new Map<string, Record<string, unknown>>();
+  for (const r of rows) {
+    const zone = String(r.climate_zone);
+    const cur = byZone.get(zone) ?? { climate_zone: zone };
+    cur[String(r.position_status)] = Number(r.position_count);
+    byZone.set(zone, cur);
+  }
+  return ZONES.map((z) => byZone.get(z) ?? { climate_zone: z }).filter(
+    (r) => Object.keys(r).length > 1,
+  );
+}
+
 export function AnalyticsView() {
   const [warehouse, setWarehouse] = useState<Warehouse | null>(null);
+  const [trendZone, setTrendZone] = useState<'all' | (typeof ZONES)[number]>('all');
 
   useEffect(() => {
     fetchWarehouse().then(setWarehouse).catch(console.error);
   }, []);
+
+  const trendYKeys = trendZone === 'all' ? [...ZONES] : [trendZone];
+  const trendColors =
+    trendZone === 'all'
+      ? [...ZONE_COLORS]
+      : [ZONE_COLORS[ZONES.indexOf(trendZone)]];
 
   return (
     <div className="h-full overflow-y-auto">
@@ -105,17 +144,36 @@ export function AnalyticsView() {
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
           <ChartCard
             title="Cold weather demand trend"
-            scope="Last 12 weeks"
+            scope="Last 8 weeks · weekly units sold, by climate zone"
+            about="Weekly units sold on the 5 cold-weather SKUs, split by climate zone. The North ramps ~3 weeks before the incident while the South stays flat — the divergence that drove the shortfall. Source: silver_sales via SQL warehouse. Click legend entries to toggle series."
             className="lg:col-span-3"
+            actions={
+              <div className="flex gap-1">
+                {(['all', ...ZONES] as const).map((z) => (
+                  <button
+                    key={z}
+                    onClick={() => setTrendZone(z as typeof trendZone)}
+                    className={`px-2 py-0.5 rounded-full text-[11px] font-medium border transition-colors ${
+                      trendZone === z
+                        ? 'border-foreground/50 text-foreground bg-muted'
+                        : 'border-border text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {z === 'all' ? 'All' : z}
+                  </button>
+                ))}
+              </div>
+            }
           >
             <ChartData chartKey="cold_weather_velocity_trend" height={260}>
               {(rows) => (
                 <LineChart
-                  data={rows}
+                  data={pivotVelocity(rows)}
                   xKey="week"
-                  yKey="units_sold"
-                  colors={[BRAND_PALETTE[0]]}
+                  yKey={trendYKeys}
+                  colors={trendColors}
                   height={260}
+                  showLegend
                   smooth
                 />
               )}
@@ -124,24 +182,31 @@ export function AnalyticsView() {
 
           <ChartCard
             title="Position mix by climate zone"
-            scope="All time"
+            scope="Non-healthy positions on the 5 affected SKUs"
+            about="Store×SKU positions (excluding healthy) on the 5 affected SKUs, counted by climate zone and status. The North skews stockout, the South skews overstock — the split the recovery moves work against. Source: gold_store_sku_position. Click legend entries to toggle series."
             className="lg:col-span-2"
           >
             <ChartData chartKey="position_mix_by_zone" height={260}>
               {(rows) => (
                 <BarChart
-                  data={rows}
+                  data={pivotZoneMix(rows)}
                   xKey="climate_zone"
-                  yKey="position_count"
-                  colors={[BRAND_PALETTE[0]]}
+                  yKey={[...STATUS_KEYS]}
+                  colors={[...STATUS_COLORS]}
                   height={260}
+                  showLegend
                 />
               )}
             </ChartData>
           </ChartCard>
         </div>
 
-        <ChartCard title="Worst shortfalls" scope="By exposure" flush>
+        <ChartCard
+          title="Worst shortfalls"
+          scope="Top 4 per SKU, by annualized lost-sales exposure"
+          about="The worst open shortfalls — top 4 per SKU by annualized lost-sales exposure (price × recent velocity, zero on-hand). Filter by product or click a column to sort. Source: gold_store_sku_position."
+          flush
+        >
           <ChartData<WorstShortfallRow> chartKey="worst_shortfalls" height={300}>
             {(rows) => (
               <WorstShortfallsTable rows={rows} />
@@ -156,24 +221,45 @@ export function AnalyticsView() {
 type ChartCardProps = {
   title: string;
   scope: string;
+  /** Plain-English explanation, shown on the ⓘ hover tooltip. */
+  about?: string;
+  /** Optional header-right content (filter buttons etc.). */
+  actions?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
   flush?: boolean;
 };
 
-function ChartCard({ title, scope, children, className = '', flush = false }: ChartCardProps) {
+function ChartCard({ title, scope, about, actions, children, className = '', flush = false }: ChartCardProps) {
+  const header = (
+    <>
+      <div className="flex items-center gap-1.5 min-w-0">
+        <h3 className="font-semibold text-sm truncate">{title}</h3>
+        {about && (
+          <span
+            className="inline-grid place-items-center size-4 rounded-full border border-border text-[10px] text-muted-foreground cursor-help shrink-0"
+            title={about}
+            aria-label={`About: ${title}`}
+          >
+            i
+          </span>
+        )}
+      </div>
+      <div className="text-xs text-muted-foreground">{scope}</div>
+    </>
+  );
   return (
     <div className={`rounded-xl border border-border bg-card overflow-hidden ${className}`}>
       {!flush && (
-        <div className="px-6 py-4 border-b border-border">
-          <h3 className="font-semibold text-sm">{title}</h3>
-          <div className="text-xs text-muted-foreground mt-1">{scope}</div>
+        <div className="px-6 py-4 border-b border-border flex items-center justify-between gap-3 flex-wrap">
+          {header}
+          {actions}
         </div>
       )}
       {flush && (
-        <div className="px-6 pt-4 pb-2">
-          <h3 className="font-semibold text-sm">{title}</h3>
-          <div className="text-xs text-muted-foreground">{scope}</div>
+        <div className="px-6 pt-4 pb-2 flex items-center justify-between gap-3 flex-wrap">
+          {header}
+          {actions}
         </div>
       )}
       <div className="px-6 py-4">{children}</div>
@@ -223,7 +309,38 @@ type WorstShortfallRow = {
   lost_sales_exposure_usd: number;
 };
 
+type SortKey = 'store_name' | 'city' | 'product_name' | 'on_hand' | 'avg_daily_velocity' | 'lost_sales_exposure_usd';
+
+const COLUMNS: Array<{ key: SortKey; label: string; numeric?: boolean }> = [
+  { key: 'store_name', label: 'Store' },
+  { key: 'city', label: 'City' },
+  { key: 'product_name', label: 'Product' },
+  { key: 'on_hand', label: 'On hand', numeric: true },
+  { key: 'avg_daily_velocity', label: '7d velocity', numeric: true },
+  { key: 'lost_sales_exposure_usd', label: 'Exposure $', numeric: true },
+];
+
 function WorstShortfallsTable({ rows }: { rows: WorstShortfallRow[] }) {
+  const [product, setProduct] = useState<string>('all');
+  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({
+    key: 'lost_sales_exposure_usd',
+    dir: -1,
+  });
+
+  const products = [...new Set(rows.map((r) => r.product_name))].sort();
+
+  const visible = rows
+    .filter((r) => product === 'all' || r.product_name === product)
+    .sort((a, b) => {
+      const av = a[sort.key];
+      const bv = b[sort.key];
+      const cmp =
+        typeof av === 'number' && typeof bv === 'number'
+          ? av - bv
+          : String(av).localeCompare(String(bv));
+      return cmp * sort.dir;
+    });
+
   if (rows.length === 0) {
     return (
       <div className="text-center text-muted-foreground text-sm py-8">
@@ -234,25 +351,55 @@ function WorstShortfallsTable({ rows }: { rows: WorstShortfallRow[] }) {
 
   return (
     <div className="overflow-x-auto">
+      <div className="flex items-center gap-2 pb-3">
+        <label className="text-xs text-muted-foreground" htmlFor="wsf-product">
+          Product
+        </label>
+        <select
+          id="wsf-product"
+          value={product}
+          onChange={(e) => setProduct(e.target.value)}
+          className="text-xs rounded-md border border-border bg-background px-2 py-1"
+        >
+          <option value="all">All ({rows.length})</option>
+          {products.map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
+        </select>
+        <span className="text-xs text-muted-foreground ml-auto">
+          Click a column to sort
+        </span>
+      </div>
       <table className="w-full text-sm">
         <thead className="bg-muted text-xs uppercase tracking-wider text-muted-foreground border-b border-border">
           <tr>
-            <th className="text-left px-4 py-2 font-semibold">Store</th>
-            <th className="text-left px-4 py-2 font-semibold">City</th>
-            <th className="text-left px-4 py-2 font-semibold">Product</th>
-            <th className="text-left px-4 py-2 font-semibold">On hand</th>
-            <th className="text-left px-4 py-2 font-semibold">7d velocity</th>
-            <th className="text-right px-4 py-2 font-semibold">Exposure $</th>
+            {COLUMNS.map((c) => (
+              <th
+                key={c.key}
+                onClick={() =>
+                  setSort((s) =>
+                    s.key === c.key ? { key: c.key, dir: (s.dir * -1) as 1 | -1 } : { key: c.key, dir: c.numeric ? -1 : 1 },
+                  )
+                }
+                className={`px-4 py-2 font-semibold cursor-pointer select-none hover:text-foreground ${c.numeric ? 'text-right' : 'text-left'}`}
+                title={`Sort by ${c.label}`}
+              >
+                {c.label}
+                {sort.key === c.key ? (sort.dir === 1 ? ' ↑' : ' ↓') : ''}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
-          {rows.map((row, i) => (
+          {visible.map((row, i) => (
             <tr key={i} className="hover:bg-muted/40 transition-colors">
               <td className="px-4 py-2 font-medium">{row.store_name}</td>
               <td className="px-4 py-2 text-muted-foreground">{row.city}</td>
               <td className="px-4 py-2">{row.product_name}</td>
-              <td className="px-4 py-2 font-mono">{row.on_hand}</td>
-              <td className="px-4 py-2 font-mono">
+              <td className="px-4 py-2 text-right font-mono">{row.on_hand}</td>
+              <td className="px-4 py-2 text-right font-mono">
                 {row.avg_daily_velocity.toFixed(1)}/day
               </td>
               <td className="px-4 py-2 text-right font-mono">

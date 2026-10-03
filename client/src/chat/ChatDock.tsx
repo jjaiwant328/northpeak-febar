@@ -22,7 +22,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useLocation } from 'react-router';
-import { ArrowRight, ArrowUp, ChevronLeft, PenSquare, Sparkles, Square, X } from 'lucide-react';
+import { ArrowRight, ArrowUp, ChevronLeft, GripVertical, PenSquare, Sparkles, Square, X } from 'lucide-react';
 import { Spinner } from '@databricks/appkit-ui/react';
 import {
   fetchDockConversation,
@@ -45,6 +45,23 @@ import { useChatTurn } from './useChatTurn';
 // which is the opposite of what we want.
 const DOCK_CONV_STORAGE_KEY = 'app:dock:active-conversation-id';
 
+// localStorage key for the dragged dock position (shared by the collapsed
+// bubble and the open dock, so dragging one carries to the other).
+const DOCK_POS_STORAGE_KEY = 'app:dock:position';
+
+type DockPos = { x: number; y: number };
+
+function loadDockPos(): DockPos | null {
+  try {
+    const raw = localStorage.getItem(DOCK_POS_STORAGE_KEY);
+    if (!raw) return null;
+    const p = JSON.parse(raw) as DockPos;
+    return typeof p?.x === 'number' && typeof p?.y === 'number' ? p : null;
+  } catch {
+    return null;
+  }
+}
+
 export function ChatDock() {
   const location = useLocation();
 
@@ -52,6 +69,65 @@ export function ChatDock() {
   // app root and reused everywhere. No per-component fetches here.
   const { me, config } = useSession();
   const [open, setOpen] = useState(false);
+  // Dragged position; null = default (bottom-right anchor).
+  const [dockPos, setDockPos] = useState<DockPos | null>(loadDockPos);
+  const dragState = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    origX: number;
+    origY: number;
+    moved: boolean;
+  } | null>(null);
+
+  const startDockDrag = (e: React.PointerEvent<HTMLElement>) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    const el = e.currentTarget;
+    const rect = el.getBoundingClientRect();
+    dragState.current = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      origX: dockPos?.x ?? rect.left,
+      origY: dockPos?.y ?? rect.top,
+      moved: false,
+    };
+    el.setPointerCapture(e.pointerId);
+  };
+  const onDockDrag = (e: React.PointerEvent<HTMLElement>) => {
+    const d = dragState.current;
+    if (!d || d.pointerId !== e.pointerId) return;
+    const dx = e.clientX - d.startX;
+    const dy = e.clientY - d.startY;
+    if (!d.moved && Math.hypot(dx, dy) < 6) return;
+    d.moved = true;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = Math.max(8, Math.min(window.innerWidth - rect.width - 8, d.origX + dx));
+    const y = Math.max(8, Math.min(window.innerHeight - rect.height - 8, d.origY + dy));
+    setDockPos({ x, y });
+  };
+  const justDragged = useRef(false);
+  const endDockDrag = (e: React.PointerEvent<HTMLElement>): boolean => {
+    const d = dragState.current;
+    dragState.current = null;
+    if (!d || d.pointerId !== e.pointerId) return false;
+    if (d.moved) {
+      justDragged.current = true;
+      if (dockPos) {
+        try {
+          localStorage.setItem(DOCK_POS_STORAGE_KEY, JSON.stringify(dockPos));
+        } catch {
+          /* storage unavailable */
+        }
+      }
+    }
+    return d.moved;
+  };
+  // Inline position override (wins over the right/bottom anchor classes).
+  const posStyle: React.CSSProperties = dockPos
+    ? { left: dockPos.x, top: dockPos.y, right: 'auto', bottom: 'auto' }
+    : {};
+
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [input, setInput] = useState('');
@@ -425,12 +501,24 @@ export function ChatDock() {
 
       {!open && (
         <button
-          onClick={() => setOpen(true)}
-          className={`fixed bottom-4 sm:bottom-6 inline-flex items-center gap-2 sm:gap-3 rounded-full px-4 sm:px-6 py-3 sm:py-3.5 text-sm sm:text-base font-semibold shadow-lg hover:shadow-xl hover:scale-105 active:scale-100 transition-all duration-200 ${drawerOpen ? 'z-[60] right-4 sm:right-[calc(60vw+24px)] lg:right-[656px]' : 'z-40 right-4 sm:right-6'}`}
+          onClick={() => {
+            if (justDragged.current) {
+              justDragged.current = false;
+              return;
+            }
+            setOpen(true);
+          }}
+          onPointerDown={startDockDrag}
+          onPointerMove={onDockDrag}
+          onPointerUp={endDockDrag}
+          onPointerCancel={endDockDrag}
+          className={`fixed bottom-4 sm:bottom-6 inline-flex items-center gap-2 sm:gap-3 rounded-full px-4 sm:px-6 py-3 sm:py-3.5 text-sm sm:text-base font-semibold shadow-lg hover:shadow-xl hover:scale-105 active:scale-100 transition-all duration-200 cursor-grab active:cursor-grabbing touch-none ${drawerOpen ? 'z-[60] right-4 sm:right-[calc(60vw+24px)] lg:right-[656px]' : 'z-40 right-4 sm:right-6'}`}
           style={{
             background: 'var(--dock-gradient)',
             color: 'var(--primary-foreground)',
+            ...posStyle,
           }}
+          title="Click to open · drag to reposition"
         >
           <Sparkles className="size-5 animate-sparkle" />
           <span className="hidden sm:inline">Ask the assistant — from question to resolution</span>
@@ -444,7 +532,10 @@ export function ChatDock() {
         // corner (no margin) — reads as a docked panel, not a floating
         // popup. Only the top-left corner gets rounded so the inside corner
         // against the viewport edge stays sharp.
-        <div className={`fixed inset-0 sm:inset-auto sm:bottom-0 sm:h-[760px] sm:max-h-[92vh] sm:rounded-tl-2xl border-0 sm:border-l sm:border-t border-border bg-card shadow-2xl flex flex-col overflow-hidden ${drawerOpen ? 'z-[60] sm:right-[60vw] sm:w-[38vw] lg:right-[640px] lg:w-[440px]' : 'z-40 sm:right-0 sm:w-[440px]'}`}>
+        <div
+          className={`fixed inset-0 sm:inset-auto sm:bottom-0 sm:h-[760px] sm:max-h-[92vh] sm:rounded-tl-2xl border-0 sm:border-l sm:border-t border-border bg-card shadow-2xl flex flex-col overflow-hidden ${drawerOpen ? 'z-[60] sm:right-[60vw] sm:w-[38vw] lg:right-[640px] lg:w-[440px]' : 'z-40 sm:right-0 sm:w-[440px]'}`}
+          style={posStyle}
+        >
           {/* Header — clicking anywhere on it (outside the action buttons)
               collapses the dock. Same behavior as the X button.
               On mobile the dock is full-screen, so we add a prominent
@@ -459,6 +550,22 @@ export function ChatDock() {
             title="Click to collapse"
           >
             <div className="flex items-center gap-1.5 sm:gap-2 text-sm font-semibold">
+              {/* Drag handle (desktop) — reposition the dock; collapse still
+                  works via header click elsewhere or the X. */}
+              <span
+                className="hidden sm:inline-flex p-0.5 -ml-1 cursor-grab active:cursor-grabbing touch-none"
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  startDockDrag(e);
+                }}
+                onPointerMove={onDockDrag}
+                onPointerUp={endDockDrag}
+                onPointerCancel={endDockDrag}
+                title="Drag to reposition"
+                aria-label="Drag to reposition"
+              >
+                <GripVertical className="size-4 opacity-70" />
+              </span>
               {/* Phone-only Back chevron. stopPropagation isn't needed —
                   clicking it ALSO collapses the dock (same handler), the
                   chevron just makes it look like a "back" action. */}
