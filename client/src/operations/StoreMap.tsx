@@ -45,9 +45,9 @@ const STATUS_COLORS: Record<PositionStatus, string> = {
   healthy: '#3C6997',
 };
 
-const RADIUS_MIN = 3;
-const RADIUS_MAX = 14;
-const RADIUS_SCALE = 1.5;
+const RADIUS_MIN = 2.5;
+const RADIUS_MAX = 8;
+const RADIUS_SCALE = 1.0;
 const PULSE_MS = 1100;
 const PULSE_WEIGHT = 4;
 const REST_WEIGHT = 1.5;
