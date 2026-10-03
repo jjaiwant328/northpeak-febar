@@ -236,12 +236,11 @@ function ChartCard({ title, scope, about, actions, children, className = '', flu
       <div className="flex items-center gap-1.5 min-w-0">
         <h3 className="font-semibold text-sm truncate">{title}</h3>
         {about && (
-          <span
-            className="inline-grid place-items-center size-4 rounded-full border border-border text-[10px] text-muted-foreground cursor-help shrink-0"
-            title={about}
-            aria-label={`About: ${title}`}
-          >
+          <span className="relative inline-grid place-items-center size-4 rounded-full border border-border text-[10px] text-muted-foreground cursor-help shrink-0 group">
             i
+            <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-2 z-50 hidden group-hover:block w-72 rounded-lg border border-border bg-popover px-3 py-2 text-[11px] font-normal normal-case tracking-normal text-popover-foreground shadow-xl">
+              {about}
+            </span>
           </span>
         )}
       </div>

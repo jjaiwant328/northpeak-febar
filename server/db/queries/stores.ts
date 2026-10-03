@@ -1142,18 +1142,16 @@ export async function approveRecoveryAction(
 }
 
 // ============================================================================
-// searchProducts — hybrid product search over Lakebase Search (Milestone 2.4).
+// searchProducts — keyword product search (plain Postgres tsvector).
 // Powers the agent's SUBSTITUTE recovery option: find a comparable in-stock
 // item to offer when the requested SKU is sold out.
 //
-// `app_v2.products` carries two Lakebase Search structures over (name +
-// description):
-//   - search_tsv  (tsvector)   → BM25 keyword index `products_search_bm25`
-//   - embedding   (vector 1024)→ ANN index `products_embedding_ann` (cosine)
-// When a query embedding is supplied we FUSE the two rankings with Reciprocal
-// Rank Fusion (RRF, k=60); with no embedding we fall back to BM25 keyword-only
-// (still returns the right substitutes). Each candidate joins network on-hand
-// from the store_sku_position snapshot (0 until Milestone 1 fills it).
+// `app_v2.products` carries product_id/name/category/price_usd/description
+// plus a generated search_tsv (tsvector over name+description) with a GIN
+// index. Ranked by ts_rank with an ILIKE name-match boost; each candidate
+// joins network on-hand from the store_sku_position snapshot.
+// (The template's ParadeDB BM25 + pgvector ANN fusion was replaced — this
+// Lakebase instance ships neither extension.)
 // ============================================================================
 
 export type ProductMatch = {
@@ -1167,13 +1165,16 @@ export type ProductMatch = {
 export async function searchProducts(
   db: AppDb,
   query: string,
-  queryEmbedding: number[] | null = null,
+  _queryEmbedding: number[] | null = null,
   limit = 8,
 ): Promise<ProductMatch[]> {
-  // BM25 relevance expression (lower/more-negative score = more relevant).
-  const bm25 = sql`p.search_tsv <@> to_bm25query(to_tsvector('english', ${query}), 'app_v2.products_search_bm25'::regclass)`;
+  // Plain-Postgres tsvector keyword search (this Lakebase instance has no
+  // ParadeDB/pgvector — the earlier ParadeDB `to_bm25query` and ANN fusion
+  // were removed). ts_rank over (name + description); exact-name ILIKE match
+  // boosts to the top; network on-hand joins from the position snapshot.
+  const rank = sql`ts_rank(p.search_tsv, plainto_tsquery('english', ${query}))`;
+  const exactBoost = sql`(p.product_name ILIKE '%' || ${query} || '%')::int`;
 
-  // Network on-hand per product from the position snapshot (0 if none yet).
   const onHand = sql`
     LEFT JOIN (
       SELECT product_id, COALESCE(SUM(on_hand_units), 0)::int AS on_hand_units
@@ -1181,63 +1182,24 @@ export async function searchProducts(
       GROUP BY product_id
     ) oh ON oh.product_id = p.product_id`;
 
-  let rows: Array<{
+  const res = await db.execute(sql`
+    SELECT p.product_id, p.product_name, p.category, p.price_usd,
+           COALESCE(oh.on_hand_units, 0) AS on_hand_units
+    FROM app_v2.products p
+    ${onHand}
+    WHERE p.is_active
+      AND (p.search_tsv @@ plainto_tsquery('english', ${query})
+           OR p.product_name ILIKE '%' || ${query} || '%')
+    ORDER BY (${exactBoost} + ${rank}) DESC, p.product_name
+    LIMIT ${limit}
+  `);
+  const rows = res.rows as Array<{
     product_id: string;
     product_name: string | null;
     category: string | null;
     price_usd: number | string | null;
     on_hand_units: number | string | null;
   }>;
-
-  if (queryEmbedding && queryEmbedding.length) {
-    // pgvector literal, e.g. '[0.1,0.2,...]', cast ::vector for the ANN op.
-    const vecLiteral = `[${queryEmbedding.join(',')}]`;
-    const res = await db.execute(sql`
-      WITH kw AS (
-        SELECT product_id, RANK() OVER (ORDER BY score ASC) AS rnk FROM (
-          SELECT p.product_id, ${bm25} AS score
-          FROM app_v2.products p
-          WHERE p.is_active
-          ORDER BY score ASC
-          LIMIT 40
-        ) k
-      ),
-      vec AS (
-        SELECT product_id, RANK() OVER (ORDER BY dist ASC) AS rnk FROM (
-          SELECT p.product_id, p.embedding <=> ${vecLiteral}::vector AS dist
-          FROM app_v2.products p
-          WHERE p.is_active
-          ORDER BY dist ASC
-          LIMIT 40
-        ) v
-      ),
-      fused AS (
-        SELECT COALESCE(kw.product_id, vec.product_id) AS product_id,
-               COALESCE(1.0 / (60 + kw.rnk), 0) + COALESCE(1.0 / (60 + vec.rnk), 0) AS rrf
-        FROM kw FULL OUTER JOIN vec ON kw.product_id = vec.product_id
-      )
-      SELECT p.product_id, p.product_name, p.category, p.price_usd,
-             COALESCE(oh.on_hand_units, 0) AS on_hand_units
-      FROM fused f
-      JOIN app_v2.products p ON p.product_id = f.product_id
-      ${onHand}
-      ORDER BY f.rrf DESC, p.product_id
-      LIMIT ${limit}
-    `);
-    rows = res.rows as typeof rows;
-  } else {
-    // Keyword-only fallback (no embedding available).
-    const res = await db.execute(sql`
-      SELECT p.product_id, p.product_name, p.category, p.price_usd,
-             COALESCE(oh.on_hand_units, 0) AS on_hand_units
-      FROM app_v2.products p
-      ${onHand}
-      WHERE p.is_active
-      ORDER BY ${bm25} ASC
-      LIMIT ${limit}
-    `);
-    rows = res.rows as typeof rows;
-  }
 
   return rows.map((r) => ({
     product_id: r.product_id,
@@ -1247,3 +1209,4 @@ export async function searchProducts(
     on_hand_units: Number(r.on_hand_units ?? 0),
   }));
 }
+

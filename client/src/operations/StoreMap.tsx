@@ -45,9 +45,9 @@ const STATUS_COLORS: Record<PositionStatus, string> = {
   healthy: '#3C6997',
 };
 
-const RADIUS_MIN = 5;
-const RADIUS_MAX = 32;
-const RADIUS_SCALE = 2.6;
+const RADIUS_MIN = 3;
+const RADIUS_MAX = 14;
+const RADIUS_SCALE = 1.5;
 const PULSE_MS = 1100;
 const PULSE_WEIGHT = 4;
 const REST_WEIGHT = 1.5;
@@ -157,7 +157,7 @@ export function StoreMap({ statusGroup, zone, onSelectStore }: Props) {
           {totalPositions} positions
         </div>
       </div>
-      <div className="h-[280px] sm:h-[340px] relative">
+      <div className="h-[380px] sm:h-[480px] relative">
         {stores.length === 0 ? (
           <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
             No affected stores in the current scope.
