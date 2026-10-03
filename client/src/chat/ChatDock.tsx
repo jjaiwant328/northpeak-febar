@@ -333,6 +333,14 @@ export function ChatDock() {
   // External controller: open / openAndSend / newAndSend from any page.
   useEffect(() => {
     return dockController.subscribe((req) => {
+      if (req.action === 'reset') {
+        // Demo reset truncated the conversations table — the stored id now
+        // violates the FK (23503). Re-resolve from scratch; the open-dock
+        // effect recreates the demo_dock row on next use.
+        setConversationId(null);
+        setMessages([]);
+        return;
+      }
       setOpen(true);
       if (req.action === 'send') {
         pendingAutoSend.current = req.prompt;

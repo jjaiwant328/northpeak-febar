@@ -19,7 +19,8 @@
 type Request =
   | { action: 'open' }
   | { action: 'send'; prompt: string }
-  | { action: 'new'; prompt: string };
+  | { action: 'new'; prompt: string }
+  | { action: 'reset' };
 
 type Listener = (req: Request) => void;
 
@@ -45,6 +46,12 @@ class DockController {
   /** Start a fresh conversation in the dock and send a prompt into it. */
   newAndSend(prompt: string) {
     this.listeners.forEach((fn) => fn({ action: 'new', prompt }));
+  }
+
+  /** Demo reset — drop the dock's conversation pointer (the row was
+   *  truncated server-side, so the stored id now violates the FK). */
+  reset() {
+    this.listeners.forEach((fn) => fn({ action: 'reset' }));
   }
 }
 

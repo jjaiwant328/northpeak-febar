@@ -464,6 +464,30 @@ function makeTools(ctx: AgentContext): Tool[] {
             predictedRecapturedUsd: args.predicted_recaptured_usd,
             userEmail: ctx.userEmail,
           });
+          // Pre-warm the guarded policy endpoint (scale-to-zero). The
+          // ~105s cold start then overlaps the human reading the draft —
+          // the approval's check_policy hits a warm endpoint instead of
+          // burning 45–120s on stage. Fire-and-forget, best-effort.
+          void (async () => {
+            try {
+              const h = await authHeaders(ctx.req);
+              h.set('Content-Type', 'application/json');
+              await fetch(
+                `${ctx.databricksHost}/serving-endpoints/jai-northpeak-guarded/invocations`,
+                {
+                  method: 'POST',
+                  headers: h,
+                  signal: AbortSignal.timeout(5_000),
+                  body: JSON.stringify({
+                    messages: [{ role: 'user', content: 'ping' }],
+                    max_tokens: 5,
+                  }),
+                },
+              );
+            } catch {
+              /* warm-up is best-effort — check_policy retries cold anyway */
+            }
+          })();
           return { proposed: true, action_id: actionId, status: 'proposed' };
         },
         {

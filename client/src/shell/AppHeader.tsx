@@ -43,6 +43,7 @@ import { AlertTriangle, ArrowUpRight, FlaskConical, GitBranch, RotateCcw } from 
 import { resetDemoState, useSession } from '@/lib/api';
 import { conversationStore } from '@/lib/conversations';
 import { dataMutated } from '@/lib/events';
+import { dockController } from '@/chat/dockController';
 
 export function AppHeader() {
   // me + config come from SessionProvider in App.tsx — fetched ONCE at the
@@ -61,6 +62,11 @@ export function AppHeader() {
     try {
       await resetDemoState();
       conversationStore.clear();
+      // The reset truncates app_v2.conversations — the dock's persisted
+      // conversation id now points at a deleted row (FK 23503 on the next
+      // turn). Drop it locally AND tell the dock to re-resolve.
+      localStorage.removeItem('app:dock:active-conversation-id');
+      dockController.reset();
       dataMutated.emit();
       setResetOpen(false);
       navigate('/');
